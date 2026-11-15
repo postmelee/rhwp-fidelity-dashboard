@@ -1,5 +1,7 @@
 # 측정 방법과 결과 해석
 
+아래 Native/WASM 빌드 명령은 Actions runner가 exact SHA로 checkout한 **upstream rhwp 디렉터리**에서 실행합니다. 대시보드 저장소의 로컬 페이지 검증 명령은 [운영 문서](OPERATIONS.md)에 있습니다.
+
 - 원본/PDF snapshot: `67b4ff8d3a55e5bb50c46a44315de749a4ef07a7`의 contributor catalog. 측정 엔진 SHA는 매 실행 별도로 resolve하므로 corpus 파일 버전과 혼동하지 않습니다.
 - Native: `cargo build --locked --release --bin rhwp --features native-skia`.
 - WASM: upstream `scripts/wasm-pack-locked.sh --target web --release`; `npm ci --prefix rhwp-studio`.
