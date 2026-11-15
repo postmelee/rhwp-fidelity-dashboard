@@ -1,0 +1,39 @@
+name: Oracle catalog audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/oracle-catalog.yml']
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Full pinned upstream source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: edwardkim/rhwp
+          ref: 67b4ff8d3a55e5bb50c46a44315de749a4ef07a7
+          persist-credentials: false
+      - name: Test existing resolver and regenerate private catalogs
+        run: |
+          python3 tools/oracle_public/tests/test_oracle_resolver.py
+          python3 tools/oracle_public/test_fatten_catalog.py
+          python3 tools/oracle_public/oracle_resolver.py --validate --pretty -o "$RUNNER_TEMP/oracle-pairs.json"
+          python3 tools/oracle_public/fatten_catalog.py --out-root "$RUNNER_TEMP/oracle-audit" --json > "$RUNNER_TEMP/oracle-summary.json"
+      - name: Report numeric coverage only
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          for filename, fields in [
+              ("oracle-pairs.json", ("pairCount", "matchedSampleCount", "unmatchedCount", "byHancomVersion")),
+              ("oracle-summary.json", ("pairCount", "matchedSampleCount", "unmatchedCount", "unusedOraclePdfCount", "oraclePdfCount", "byHancomVersion", "byVerdict")),
+          ]:
+              data = json.loads((root/filename).read_text())
+              print(filename, json.dumps({key:data[key] for key in fields}, sort_keys=True))
+          print("Candidate pairing and PDF structure only; not Print provenance, publication permission, or visual fidelity.")
+          PY
