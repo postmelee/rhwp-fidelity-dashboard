@@ -61,7 +61,7 @@ Raw silhouette는 96dpi, RGB 232 ink threshold와 2px dilation tolerance의 모�
 
 exit 1은 완전한 manifest·페이지 목록·PDF 쪽수 계약이 확인되면 quality alert로 보존합니다. 그 외 실행 실패는 failed/partial입니다. 누락 데이터는 0이나 100으로 대체하지 않습니다. latest attempted와 last complete는 별도로 표시합니다.
 
-현재 corpus hash에 해당하는 실행만 화면에 보이고, 이전 빈 corpus 등의 기록은 data branch에 보존합니다. 재배포는 원래 시각·환경의 과거 결과를 다시 보여 줄 뿐이며 현재 runner/build와 동등하다는 뜻이 아닙니다. identity의 선언된 코드·corpus·font 계약과 실제 실행 후 environment/build fingerprint를 구별합니다. JSON은 engine/dashboard SHA, source ref/type/time, protocol, corpus/font/adapter fingerprint와 실제 environment/build fingerprint를 제공합니다.
+현재 corpus hash에 해당하는 실행만 화면에 보이고, 이전 빈 corpus 등의 기록은 data branch에 보존합니다. 재배포는 원래 시각·환경의 과거 결과를 다시 보여 줄 뿐이며 현재 runner/build와 동등하다는 뜻이 아닙니다. 현재 환경에서 다시 실측하려면 workflow_dispatch에 tag 또는 SHA를 명시하세요. identity의 선언된 코드·corpus·font 계약과 실제 실행 후 environment/build fingerprint를 구별합니다. JSON은 engine/dashboard SHA, source ref/type/time, protocol, corpus/font/adapter fingerprint와 실제 environment/build fingerprint를 제공합니다.
 
 ## 기존 전체 oracle 카탈로그
 
@@ -75,7 +75,7 @@ exit 1은 완전한 manifest·페이지 목록·PDF 쪽수 계약이 확인되�
 
 ## 보안과 제한
 
-Actions commit SHA pin, checkout `persist-credentials:false`, 최소 job 권한과 분리된 Pages OIDC를 사용합니다. ref를 환경변수로 전달하고 shell에 삽입하지 않습니다. tag chain, 경로 이탈/symlink, 고정 asset origin과 hash, JSON 크기, 타입·범위·NaN, 중복/누락 페이지 및 public field whitelist를 검사합니다. data branch를 코드로 checkout하거나 실행하지 않습니다.
+Actions commit SHA pin, checkout `persist-credentials:false`, 최소 job 권한과 분리된 Pages OIDC를 사용합니다. ref를 환경변수로 전달하고 shell에 삽입하지 않습니다. tag chain, 경로 이탈/symlink, 고정 asset origin과 hash, asset당 최대 32MiB와 결과 JSON 최대 8MB, 타입·범위·NaN, 중복/누락 페이지 및 public field whitelist를 검사합니다. data branch를 코드로 checkout하거나 실행하지 않습니다.
 
 upstream의 현재 contributor gate 결과를 새 측정으로 복사하지 않습니다. 이 dashboard의 producer와 실제 실행 결과만 사용합니다. 기존 자료는 새 Hancom 인쇄 없이 재사용합니다. 전체 workflow 취소 또는 publisher 인프라 장애는 실측 성공으로 표시하지 않습니다.
 
