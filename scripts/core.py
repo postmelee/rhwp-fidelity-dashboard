@@ -63,7 +63,7 @@ def manifest(root, verify=True):
     root = Path(root)
     m = read_json(root / "manifest.json")
     exact(m, "schema_version documents")
-    if m["schema_version"] != 1 or type(m["documents"]) is not list:
+    if type(m["schema_version"]) is not int or m["schema_version"] != 1 or type(m["documents"]) is not list:
         raise ValueError("manifest schema")
     seen = set()
     for d in m["documents"]:
@@ -164,7 +164,7 @@ def validate_backend(value, documents):
 
 def validate_measurement(value, documents):
     exact(value, "schema_version environment_sha256 build_sha256 backends")
-    if value["schema_version"] != 1:
+    if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise ValueError("schema version")
     for name in ("environment_sha256", "build_sha256"):
         if value[name] is not None:

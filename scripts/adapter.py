@@ -61,6 +61,8 @@ def consume(base, document, selected=False):
     for item in metrics:
         row["scores"].append({"page": item["page"], "raw": item["silhouette_raw_match_percent"]})
     expected = {1} if selected else set(range(1, document["pages"]+1))
+    if raw.get("radius_px") != 2 or raw.get("silhouette_method") != "threshold_boundary_color_support_v1":
+        raise ValueError("unsupported metric protocol")
     if (raw.get("run_state") == "complete" and set(raw.get("completed_pages", [])) == expected
             and {p["page"] for p in row["scores"]} == expected
             and counts.get("pdf") == document["pages"]):
@@ -80,6 +82,7 @@ def run(upstream, corpus, destination, expected_sha):
         if actual != match(SHA, expected_sha):
             raise ValueError("upstream SHA mismatch")
         probe(upstream)
+        result["environment_sha256"] = inventory()
         if not documents:
             for b in BACKENDS:
                 result["backends"][b]["status"] = "empty"
