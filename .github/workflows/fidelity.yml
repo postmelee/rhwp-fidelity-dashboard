@@ -122,23 +122,13 @@ jobs:
             python3 scripts/pipeline.py publish --reuse
           fi
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
-      - name: Archive trusted numeric site
-        run: |
-          python3 - <<'PY'
-          import tarfile
-          from pathlib import Path
-          with tarfile.open("artifact.tar", "w") as archive:
-              for path in sorted(Path("site").rglob("*")):
-                  if path.is_symlink():
-                      raise ValueError("site symlink rejected")
-                  if path.is_file():
-                      archive.add(path, arcname=str(path.relative_to("site")), recursive=False)
-          PY
+      - name: Archive trusted numeric site in the standard Pages format
+        run: tar --dereference --hard-dereference --directory site -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
       - id: pages_artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: github-pages
-          path: artifact.tar
+          path: ${{ runner.temp }}/artifact.tar
           retention-days: 1
           overwrite: true
       - name: Wait for exact artifact visibility
