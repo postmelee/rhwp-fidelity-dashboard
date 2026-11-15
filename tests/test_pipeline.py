@@ -174,6 +174,8 @@ class BoundaryTests(unittest.TestCase):
             self.assertIn("Page-count equal/known docs", page)
             self.assertIn("Document and page details", page)
             self.assertIn("Reproduction and provenance", page)
+            self.assertIn("Page build revision:", page)
+            self.assertIn("Native and browser runtime/font behavior can differ", page)
             self.assertIn("89.1", page)
 
     def test_release_pagination_filters_and_orders_every_page(self):

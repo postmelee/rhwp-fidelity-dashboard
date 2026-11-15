@@ -1,5 +1,7 @@
 """Presentation of validated immutable records; never combines separate attempts."""
 import html
+import os
+import re
 from core import coverage
 
 LABELS = {"native": "Native Skia", "wasm": "WASM Canvas2D"}
@@ -32,6 +34,12 @@ def comparison_html(records, docs):
     parts = ['<h2>Canvas2D and Skia against the same Hancom golden</h2>',
         '<p>WASM Canvas2D is the browser Canvas2D path built fresh from the tested source. Native Skia is the native CLI built with native-skia. These are distinct runtime paths, not an isolated swap of one browser renderer. Font supply and runtime differences may affect the result.</p>',
         '<p>Each comparison below uses one immutable attempt: identical engine SHA, document/PDF hashes, page, compatibility, corpus/font contract and protocol. Runtime/build fingerprints belong to that attempt. Skia minus Canvas2D is a difference between two golden scores, NOT a direct pixel similarity between renderers or a maturity percentage. Count-mismatched or incomplete documents are excluded from paired scores.</p>']
+    revision = os.environ.get("GITHUB_SHA", "")
+    if re.fullmatch(r"[0-9a-f]{40}", revision):
+        parts.append('<p>Page build revision: <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/commit/'+revision+'"><code>'+revision+'</code></a>. Measurement revisions remain attached to their original records below.</p>')
+    else:
+        parts.append('<p>Page build revision: unavailable (local build).</p>')
+    parts.append('<p>This corpus covers only '+str(sum(d["pages"] for d in docs))+' approved pages. It does not represent general document compatibility or establish overall Skia maturity. Native and browser runtime/font behavior can differ even under the same declared font contract.</p>')
     selected = next((r for r in reversed(records) if r["status"] == "complete"), None)
     for r in reversed(records):
         esc = html.escape
