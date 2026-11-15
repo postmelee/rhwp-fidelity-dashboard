@@ -33,3 +33,11 @@ Pages artifact 지연에 대한 단위 테스트는 지연 후 정확한 ID 노�
 이 실행의 측정은 성공했지만 Pages 서비스가 artifact 인식 이후 `deployment_failed`를 반환했습니다. 상태 API의 상세 error는 null이어서 정확한 서버 내부 원인은 단정할 수 없습니다. Pages 표준 GNU tar 형식과 `upload-artifact v4`의 고정 SHA를 사용한 경로로 복구했습니다.
 
 [재측정 없는 ledger 배포 43753904638](https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/43753904638)는 37개 테스트 및 `publish --reuse` 후 2026-11-15 19:42 UTC에 공개 HTML과 정확한 summary JSON 일치를 확인했습니다. 이 작업은 measurement artifact 대신 durable data branch를 읽었습니다. 진단·복구용 일회성 workflow와 특정 이전 run을 중단하는 actions-write job은 검증 뒤 main에서 제거했습니다. 상시 배포는 Fidelity workflow가 담당합니다.
+
+## 재시도 정책 반영 후 전체 실측
+
+[43753904763](https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/43753904763)은 두 backend 각각 4개 문서·4쪽 complete로 완료됐고, publisher가 2026-11-15 20:26 UTC에 공개 HTML과 정확한 summary JSON의 일치를 검증했습니다. [별도 immutable 기록](https://github.com/postmelee/rhwp-fidelity-dashboard/blob/data/records/43753904763-1.json)에 원래 측정 시각과 환경을 보존합니다. 점수는 위 첫 정상 실측과 같았으며 이를 새 환경과의 일반적인 동등성으로 해석하지 않습니다.
+
+이번 단계 시간은 Native release build 1222.16초, WASM release build 999.83초, browser dependency 설치 6.74초입니다. 모든 문서의 smoke 및 full 측정은 exit 0이었고 timeout은 없었습니다.
+
+Canvas2D·Skia 비교 화면은 같은 실행의 완료·쪽수 일치 페어만 연결합니다. 누락 페이지를 0으로 채우지 않는 회귀 테스트와 실제 HTML 생성 검증을 포함한 [Checks 43756652817](https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/43756652817)에서 39개 단위 테스트, actionlint, 페이지 build와 HTTP smoke가 통과했습니다.

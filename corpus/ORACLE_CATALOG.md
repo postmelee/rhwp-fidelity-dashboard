@@ -48,7 +48,7 @@
 1. 같은 immutable upstream snapshot에서 resolver와 fatten catalog를 다시 생성합니다.
 2. unmatched 문서와 unused/near-miss PDF를 함께 검토합니다. 상대 경로 차이·버전 suffix·별도 assets 위치 때문에 연결되지 않았을 수 있으므로, unmatched를 바로 인쇄 대기열로 사용하지 않습니다.
 3. 기존 PDF가 있으면 실제 문서 짝, 독립 Hancom **Print** 출처, 한컴 버전/compat, SHA-256, 페이지 수, font 계약과 측정/metadata 사용 근거를 확인해 재사용합니다. catalog 자체에는 이 승인·출처 검증이 충분하지 않습니다.
-4. 위 확인 뒤에도 필요한 golden만 사용자의 Hancom PDF export MCP 후보로 남깁니다. 새 출력 전에 원하는 버전과 font 환경을 고정하고 Print receipt, 원본/PDF hash를 보존해야 합니다.
+4. 위 확인 뒤에도 필요한 golden만 승인된 Hancom PDF export MCP의 출력 후보로 남깁니다. 새 출력 전에 원하는 버전과 font 환경을 고정하고 Print receipt, 원본/PDF hash를 보존해야 합니다.
 5. 검증된 쌍만 dashboard manifest에 등록하고 smoke 후 전체 승인 corpus를 측정합니다. 별도 Hancom 버전과 engine SHA 결과를 섞어 하나의 점수로 만들지 않습니다.
 
 이 corpus는 기존 Print PDF를 재사용합니다. raw 자료의 공개 재배포 허가를 추정하지 않습니다.
