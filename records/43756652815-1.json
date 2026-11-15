@@ -1,0 +1,132 @@
+{
+  "adapter_sha256": "4b92396dde5bc4df4bfc588e4ccc08842d6ecc97f8dabb0d95eb44903da0fafb",
+  "attempt": 1,
+  "corpus_sha256": "689bae252c852803f6eca367a3c37eb726efd612536c28caad85fa3be6145430",
+  "dashboard_sha": "bdd3cee492d49283b7498acfc0e7eeccd8836331",
+  "font_sha256": "5408324936ea947c1350bec1c13267f88a1bcd15ea25eeebe8123504ec1c55bc",
+  "measurement": {
+    "backends": {
+      "native": {
+        "documents": [
+          {
+            "id": "52ee61fe7201e36b",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "59f6ab1155623bda",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "cdacd874b6e6ac66",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 99.99756
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "d03a9dde3d5dc7ac",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          }
+        ],
+        "exit_code": 0,
+        "quality_alert": false,
+        "status": "complete"
+      },
+      "wasm": {
+        "documents": [
+          {
+            "id": "52ee61fe7201e36b",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "59f6ab1155623bda",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "cdacd874b6e6ac66",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 94.65178
+              }
+            ],
+            "status": "complete"
+          },
+          {
+            "id": "d03a9dde3d5dc7ac",
+            "pdf_pages": 1,
+            "rendered_pages": 1,
+            "scores": [
+              {
+                "page": 1,
+                "raw": 100.0
+              }
+            ],
+            "status": "complete"
+          }
+        ],
+        "exit_code": 0,
+        "quality_alert": false,
+        "status": "complete"
+      }
+    },
+    "build_sha256": "69c9adaa3841b37bba8153aba90655d57d5b26fd995d20a8b8f2f8fb815d9852",
+    "environment_sha256": "e87bde5b8cc29a1af1185b5eb6fd67b6892dee3482ec1458841090b805818ee3",
+    "schema_version": 1
+  },
+  "protocol": "silhouette-96dpi-rgb232-radius2-v1",
+  "resolved_at": "2026-11-15T20:26:25Z",
+  "run_id": 43756652815,
+  "schema_version": 1,
+  "source_kind": "stable-release",
+  "source_ref": "v0.9.0",
+  "status": "complete",
+  "upstream_sha": "c9095c5f67632e6721e800ccc7fb43ea49d26682"
+}
