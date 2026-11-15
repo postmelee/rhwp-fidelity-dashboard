@@ -45,7 +45,7 @@ def match(pattern, value):
         raise ValueError("invalid identifier")
     return value
 
-def safe_file(root, relative):
+def safe_path(root, relative):
     if type(relative) is not str or "\\" in relative:
         raise ValueError("invalid path")
     p = Path(relative)
@@ -55,6 +55,10 @@ def safe_file(root, relative):
     dest = root / p
     if dest.is_symlink() or not dest.resolve().is_relative_to(root):
         raise ValueError("path escapes corpus")
+    return dest
+
+def safe_file(root, relative):
+    dest = safe_path(root, relative)
     if not dest.is_file():
         raise ValueError("missing corpus file")
     return dest
@@ -74,7 +78,9 @@ def manifest(root, verify=True):
         seen.add(key)
         if d["compat"] not in ("2022", "2024") or integer(d["pages"]) < 1:
             raise ValueError("invalid golden contract")
-        exact(d["publication"], "approved evidence metadata_approved")
+        exact(d["publication"], "approved evidence metadata_approved raw_files")
+        if d["publication"]["raw_files"] is not False:
+            raise ValueError("this dashboard does not redistribute corpus assets")
         if d["publication"]["approved"] is not True or d["publication"]["metadata_approved"] is not True:
             raise ValueError("publication permission missing")
         if not isinstance(d["publication"]["evidence"], str) or not d["publication"]["evidence"].strip():
@@ -82,7 +88,12 @@ def manifest(root, verify=True):
         for name in ("document", "golden", "font_environment"):
             record = d[name]
             exact(record, "path sha256 source provenance")
+            if name == "font_environment" and record["path"] is None and record["sha256"] is None:
+                if not record["source"] or not record["provenance"]:
+                    raise ValueError("default font contract missing")
+                continue
             match(HASH, record["sha256"])
+            safe_path(root, record["path"])
             if not all(isinstance(record[k], str) and record[k].strip() for k in ("source", "provenance")):
                 raise ValueError("source/provenance missing")
             if verify and digest(safe_file(root, record["path"]).read_bytes()) != record["sha256"]:
@@ -92,9 +103,10 @@ def manifest(root, verify=True):
         if type(d["fonts"]) is not list:
             raise ValueError("font contract missing")
         for font in d["fonts"]:
-            exact(font, "path sha256 source license publication_approved")
+            exact(font, "path sha256 source license usage_approved")
             match(HASH, font["sha256"])
-            if font["publication_approved"] is not True or not font["license"] or not font["source"]:
+            safe_path(root, font["path"])
+            if font["usage_approved"] is not True or not font["license"] or not font["source"]:
                 raise ValueError("font redistribution not approved")
             if verify and digest(safe_file(root, font["path"]).read_bytes()) != font["sha256"]:
                 raise ValueError("font hash mismatch")

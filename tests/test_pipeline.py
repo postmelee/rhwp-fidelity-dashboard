@@ -68,7 +68,7 @@ class BoundaryTests(unittest.TestCase):
             {"object":{"type":"commit","sha":"c"*40}}]):
             self.assertEqual(pipeline.resolve_ref("v1.0.0"), ("c"*40,"manual-tag"))
     def test_retag_changes_identity(self):
-        fields = {k:"x" for k in ("upstream_sha","corpus_sha256","font_sha256","adapter_sha256","protocol")}
+        fields = {k:"x" for k in ("source_ref","upstream_sha","corpus_sha256","font_sha256","adapter_sha256","protocol")}
         changed = dict(fields, upstream_sha="y")
         self.assertNotEqual(pipeline.identity(fields), pipeline.identity(changed))
     def test_tag_cycle_rejected(self):
@@ -78,7 +78,8 @@ class BoundaryTests(unittest.TestCase):
     def test_empty_page_build(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            pipeline.build(root/"records", root/"site", pipeline.ROOT/"corpus")
+            core.write_json(root/"corpus/manifest.json", {"schema_version":1,"documents":[]})
+            pipeline.build(root/"records", root/"site", root/"corpus")
             page = (root/"site/index.html").read_text()
             data = core.read_json(root/"site/summary.json")
             self.assertIn("No measurements available", page)
@@ -119,7 +120,7 @@ class BoundaryTests(unittest.TestCase):
 
     def test_missing_publication_permission_rejected(self):
         d = {"id":"sample","compat":"2024","pages":1,"fonts":[],
-             "publication":{"approved":False,"metadata_approved":True,"evidence":"test"},
+             "publication":{"approved":False,"metadata_approved":True,"raw_files":False,"evidence":"test"},
              **{k:{"path":"example","sha256":"0"*64,"source":"test","provenance":"Hancom Print 2024"}
                 for k in ("document","golden","font_environment")}}
         with tempfile.TemporaryDirectory() as temp:
@@ -151,6 +152,61 @@ class BoundaryTests(unittest.TestCase):
             summary = core.read_json(Path(temp)/"site/summary.json")
             self.assertEqual(summary["latest_attempted"]["run_id"],2)
             self.assertEqual(summary["last_complete"]["run_id"],1)
+
+    def test_release_pagination_filters_and_orders_every_page(self):
+        def release(i, **kwargs):
+            return dict(id=i, published_at=f"2026-01-{i:02d}T00:00:00Z",
+                        tag_name=f"v{i}", draft=False, prerelease=False, **kwargs)
+        batches = [[release(3), dict(release(4), prerelease=True)],
+                   [release(2), dict(release(1), draft=True)], []]
+        with patch.object(pipeline, "api", side_effect=batches) as call:
+            self.assertEqual([r["id"] for r in pipeline.stable_releases()], [2,3])
+            self.assertEqual(call.call_args_list[-1].args[0], "releases?per_page=100&page=3")
+    def test_backlog_does_not_skip_release_between_polls(self):
+        def plan(tag, corpus, resolved=None):
+            return {"source_ref":tag, "upstream_sha":resolved[0], "corpus_sha256":"c",
+                    "font_sha256":"f","adapter_sha256":"a","protocol":"p"}
+        releases = [{"tag_name":"v1"},{"tag_name":"v2"},{"tag_name":"v3"}]
+        with patch.object(pipeline,"stable_releases",return_value=releases), patch.object(
+                pipeline,"resolve_ref",side_effect=lambda tag:(tag+"sha","manual-tag")), patch.object(
+                pipeline,"make_plan",side_effect=plan):
+            prior = plan("v1",None,("v1sha","stable-release"))
+            next_plan, needed = pipeline.choose_plan("",None,[prior])
+            self.assertTrue(needed)
+            self.assertEqual(next_plan["source_ref"],"v2")
+            last_plan, needed = pipeline.choose_plan("",None,[prior,next_plan])
+            self.assertEqual(last_plan["source_ref"],"v3")
+            _, needed = pipeline.choose_plan("",None,[prior,next_plan,last_plan])
+            self.assertFalse(needed)
+    def test_retagged_processed_release_is_pending(self):
+        prior = {"source_ref":"v1","upstream_sha":"old","corpus_sha256":"c","font_sha256":"f",
+                 "adapter_sha256":"a","protocol":"p"}
+        with patch.object(pipeline,"stable_releases",return_value=[{"tag_name":"v1"}]), patch.object(
+                pipeline,"resolve_ref",return_value=("new","manual-tag")), patch.object(
+                pipeline,"make_plan",return_value=dict(prior,upstream_sha="new")):
+            self.assertTrue(pipeline.choose_plan("",None,[prior])[1])
+    def test_deployment_recovery_without_new_measurement(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = ["pipeline.py","publish","--reuse","--ledger",temp,"--out",temp+"/site"]
+            with patch.object(sys,"argv",args), patch.object(pipeline,"ledger_repository") as ledger, patch.object(
+                    pipeline,"build") as build:
+                pipeline.main()
+            ledger.assert_called_once_with(temp)
+            build.assert_called_once()
+            self.assertFalse((Path(temp)/"records").exists())
+    def test_publish_job_does_not_depend_on_measurement_needed(self):
+        source = (pipeline.ROOT/".github/workflows/fidelity.yml").read_text()
+        publish = source.split("  publish:",1)[1]
+        condition = next(l for l in publish.splitlines() if l.strip().startswith("if:"))
+        self.assertNotIn("needed",condition)
+        self.assertIn("publish --reuse",publish)
+    def test_four_pair_manifest_is_metadata_only(self):
+        catalog = core.manifest(pipeline.ROOT/"corpus",verify=False)
+        self.assertEqual(len(catalog["documents"]),4)
+        self.assertEqual(sum(d["pages"] for d in catalog["documents"]),4)
+        for d in catalog["documents"]:
+            self.assertIs(d["publication"]["raw_files"],False)
+            self.assertTrue(d["document"]["source"].startswith("https://raw.githubusercontent.com/edwardkim/rhwp/"))
 
 if __name__ == "__main__":
     unittest.main()

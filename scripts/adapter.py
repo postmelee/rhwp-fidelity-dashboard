@@ -5,6 +5,8 @@ import os
 import platform
 import subprocess
 import sys
+import urllib.request
+import urllib.parse
 from pathlib import Path
 from core import *
 
@@ -29,7 +31,7 @@ def command(args, cwd, log=None, timeout=3600):
         return subprocess.run(args, cwd=cwd, stdout=stream, stderr=subprocess.STDOUT,
                               timeout=timeout, check=False).returncode
 
-def inventory():
+def inventory(extra_font_root=None):
     values = {"platform": platform.platform(), "python": sys.version,
               "image": os.environ.get("ImageVersion", "unavailable")}
     for name, args in {
@@ -44,7 +46,8 @@ def inventory():
         except (OSError, subprocess.TimeoutExpired):
             values[name] = None
     fonts = []
-    for directory in (Path("/usr/share/fonts"), Path.home()/".local/share/fonts"):
+    for directory in (Path("/usr/share/fonts"), Path.home()/".local/share/fonts",
+                      Path(extra_font_root) if extra_font_root else Path("/nonexistent")):
         if directory.exists():
             fonts += sorted(digest(p.read_bytes()) for p in directory.rglob("*")
                             if p.is_file() and p.suffix.lower() in (".ttf", ".otf", ".ttc"))
@@ -69,14 +72,55 @@ def consume(base, document, selected=False):
         row["status"] = "partial" if selected else "complete"
     return row
 
+
+def materialize(root, documents):
+    """Fetch only hash-pinned approved assets into ignored, disposable corpus/cache."""
+    assets = {}
+    for d in documents:
+        for asset in [d["document"], d["golden"], *d["fonts"]]:
+            if asset["path"] in assets and assets[asset["path"]] != asset:
+                raise ValueError("conflicting asset contract")
+            assets[asset["path"]] = asset
+        if d["font_environment"]["path"] is not None:
+            assets[d["font_environment"]["path"]] = d["font_environment"]
+    for asset in assets.values():
+        target = safe_path(root, asset["path"])
+        if target.is_file() and digest(target.read_bytes()) == asset["sha256"]:
+            continue
+        source = asset["source"]
+        parsed = urllib.parse.urlsplit(source)
+        if parsed.hostname not in {"raw.githubusercontent.com", "cdn.jsdelivr.net"} or parsed.username or parsed.port:
+            raise ValueError("asset origin rejected")
+        if not (re.fullmatch(r"https://raw.githubusercontent.com/edwardkim/rhwp/[0-9a-f]{40}/(?:samples|pdf|mydocs)/[^?#]+", source)
+                or re.fullmatch(r"https://cdn.jsdelivr.net/gh/(?:fonts-archive/(?:KoPubBatang|KoPubDotum)@[0-9a-f]{40}/KoPub[A-Za-z-]+\.ttf|projectnoonnu/noonfonts_2104@1\.0/HANBatang\.woff)", source)):
+            raise ValueError("asset source outside allowed immutable origins")
+        with urllib.request.urlopen(source, timeout=60) as response:
+            data = response.read(32*1024*1024+1)
+        if len(data) > 32*1024*1024 or digest(data) != asset["sha256"]:
+            raise ValueError("downloaded asset hash mismatch")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    # Match upstream's deterministic WOFF container conversion; never publish either font.
+    for asset in assets.values():
+        if asset["path"].endswith(".woff"):
+            from fontTools.ttLib import TTFont
+            source = safe_file(root, asset["path"])
+            font = TTFont(source, recalcTimestamp=False)
+            try:
+                font.flavor = None
+                font.save(str(source)+".ttf", reorderTables=False)
+            finally:
+                font.close()
+
 def run(upstream, corpus, destination, expected_sha):
     upstream, corpus, destination = map(lambda p: Path(p).resolve(), (upstream, corpus, destination))
-    documents = manifest(corpus)["documents"]
+    documents = manifest(corpus, verify=False)["documents"]
     result = {"schema_version": 1, "environment_sha256": None, "build_sha256": None,
               "backends": {b: empty_backend() for b in BACKENDS}}
     destination.parent.mkdir(parents=True, exist_ok=True)
     work = destination.parent / "private"
     work.mkdir(exist_ok=True)
+    stage = "checkout-contract"
     try:
         actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=upstream, text=True).strip()
         if actual != match(SHA, expected_sha):
@@ -87,6 +131,9 @@ def run(upstream, corpus, destination, expected_sha):
             for b in BACKENDS:
                 result["backends"][b]["status"] = "empty"
             return result
+        stage = "approved-asset-verification"
+        materialize(corpus, documents)
+        manifest(corpus)  # Verify actual bytes before any renderer receives inputs.
         # Exact approved files only; builds and raw captures remain in this disposable job.
         builds = [
             ["cargo", "build", "--locked", "--release", "--bin", "rhwp", "--features", "native-skia"],
@@ -94,7 +141,11 @@ def run(upstream, corpus, destination, expected_sha):
             ["npm", "ci", "--prefix", "rhwp-studio"],
         ]
         for i, args in enumerate(builds):
-            if command(args, upstream, work/f"build-{i}.log") != 0:
+            stage = ("native-build", "wasm-build", "browser-dependencies")[i]
+            log = work/f"build-{i}.log"
+            if command(args, upstream, log) != 0:
+                for line in log.read_text(errors="replace").splitlines()[-60:]:
+                    print("build diagnostic: " + repr(line), flush=True)
                 raise ValueError("producer build failed")
         help_result = subprocess.run([sys.executable, "scripts/visual_sweep.py", "--help"],
                                      cwd=upstream, capture_output=True, timeout=60)
@@ -108,7 +159,7 @@ def run(upstream, corpus, destination, expected_sha):
                 "cargo_lock": upstream/"Cargo.lock",
                 "npm_lock": upstream/"rhwp-studio/package-lock.json",
             }.items()}))
-        result["environment_sha256"] = inventory()
+        result["environment_sha256"] = inventory(corpus/"cache/fonts")
         for backend in BACKENDS:
             rows, codes = [], []
             for d in documents:
@@ -117,12 +168,13 @@ def run(upstream, corpus, destination, expected_sha):
                     args = [sys.executable, "scripts/visual_sweep.py",
                             "--silhouette-only", "--rasterizer", "png", "--dpi", "96",
                             "--compat", d["compat"], "--rhwp-bin", str(binary),
-                            "--font-environment", str(safe_file(corpus, d["font_environment"]["path"])),
                             "--out", str(out), "--file-target", d["id"],
                             str(safe_file(corpus, d["document"]["path"])),
                             str(safe_file(corpus, d["golden"]["path"]))]
-                    for f in d["fonts"]:
-                        args += ["--font-path", str(safe_file(corpus, f["path"]))]
+                    if d["font_environment"]["path"] is not None:
+                        args += ["--font-environment", str(safe_file(corpus, d["font_environment"]["path"]))]
+                    for directory in sorted({str(safe_file(corpus, f["path"]).parent) for f in d["fonts"]}):
+                        args += ["--font-path", directory]
                     if backend == "wasm":
                         args += ["--wasm-pkg", str(package)]
                     if smoke:
@@ -152,7 +204,8 @@ def run(upstream, corpus, destination, expected_sha):
                 "documents": rows}
         validate_measurement(result, documents)
         return result
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        print("Measurement stage failed: " + stage + " (" + type(error).__name__ + ")", flush=True)
         for b in BACKENDS:
             result["backends"][b]["status"] = "failed"
         return result

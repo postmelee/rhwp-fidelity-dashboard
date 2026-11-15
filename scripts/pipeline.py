@@ -19,10 +19,11 @@ REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,127}")
 TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 
 def api(path):
-    req = urllib.request.Request("https://api.github.com/repos/edwardkim/rhwp/" + path,
-                                 headers={"Accept": "application/vnd.github+json",
-                                          "X-GitHub-Api-Version": "2022-11-28",
-                                          "User-Agent": "rhwp-fidelity-dashboard"})
+    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+               "User-Agent": "rhwp-fidelity-dashboard"}
+    if os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+    req = urllib.request.Request("https://api.github.com/repos/edwardkim/rhwp/" + path, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as response:
         return json.load(response)
 
@@ -63,18 +64,12 @@ def validate_plan(p):
         match(HASH, p[k])
     return p
 
-def make_plan(ref, corpus):
-    m = manifest(corpus)
-    if ref:
-        sha, kind = resolve_ref(ref)
+def make_plan(ref, corpus, resolved=None):
+    m = manifest(corpus, verify=False)
+    if resolved is not None:
+        sha, kind = resolved
     else:
-        # REST polling is required: another repository's release event does not trigger this workflow.
-        release = api("releases/latest")
-        if release["draft"] or release["prerelease"]:
-            raise ValueError("not a stable release")
-        ref = release["tag_name"]
-        sha, _ = resolve_ref(ref)
-        kind = "stable-release"
+        sha, kind = resolve_ref(ref)
     p = {"schema_version": 1, "run_id": int(os.environ.get("GITHUB_RUN_ID", "0")),
          "attempt": int(os.environ.get("GITHUB_RUN_ATTEMPT", "1")),
          "resolved_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -87,7 +82,45 @@ def make_plan(ref, corpus):
     return validate_plan(p)
 
 def identity(p):
-    return tuple(p[k] for k in ("upstream_sha", "corpus_sha256", "font_sha256", "adapter_sha256", "protocol"))
+    return tuple(p[k] for k in ("source_ref", "upstream_sha", "corpus_sha256", "font_sha256", "adapter_sha256", "protocol"))
+
+
+def stable_releases():
+    """Read every page; never infer absence from /releases/latest or a truncated page."""
+    releases = {}
+    page = 1
+    while True:
+        batch = api(f"releases?per_page=100&page={page}")
+        if not isinstance(batch, list):
+            raise ValueError("invalid release listing")
+        if not batch:
+            break
+        for release in batch:
+            if not release["draft"] and not release["prerelease"]:
+                releases[integer(release["id"], 10**16)] = release
+        page += 1
+        if page > 10000:
+            raise ValueError("release listing exceeds safety bound; no partial selection")
+    return sorted(releases.values(), key=lambda r:(r["published_at"], r["id"]))
+
+def choose_plan(ref, corpus, past, latest_only=False):
+    if ref:
+        return make_plan(ref, corpus), True
+    processed = {identity(r) for r in past}
+    releases = stable_releases()
+    if not releases:
+        raise ValueError("no stable releases")
+    latest = None
+    if latest_only:
+        releases = releases[-1:]
+    for release in releases:
+        tag = release["tag_name"]
+        sha, _ = resolve_ref(tag)  # Re-resolve tags, including already observed releases.
+        plan = make_plan(tag, corpus, resolved=(sha, "stable-release"))
+        latest = plan
+        if identity(plan) not in processed:
+            return plan, True
+    return latest, False
 
 def history(folder, documents):
     result = []
@@ -97,7 +130,7 @@ def history(folder, documents):
         exact(row, PLAN_KEYS + " status measurement")
         p = validate_plan({k:row[k] for k in PLAN_KEYS.split()})
         # Each record carries corpus identity. Only current corpus is aggregated.
-        if row["corpus_sha256"] != digest(canonical(manifest(ROOT/"corpus"))):
+        if row["corpus_sha256"] != digest(canonical(manifest(ROOT/"corpus", verify=False))):
             continue
         validated = public_record(p, row["measurement"], documents)
         if validated != row:
@@ -106,7 +139,7 @@ def history(folder, documents):
     return sorted(result, key=lambda r:(r["resolved_at"], r["run_id"], r["attempt"]))
 
 def build(folder, out, corpus):
-    docs = manifest(corpus)["documents"]
+    docs = manifest(corpus, verify=False)["documents"]
     records = history(folder, docs)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -220,15 +253,14 @@ def main():
     i.add_argument("--measurement", default="incoming/result.json")
     i.add_argument("--ledger", default="ledger")
     i.add_argument("--out", default="site")
+    i.add_argument("--reuse", action="store_true", help="Rebuild/deploy ledger without creating a measurement attempt")
     args = p.parse_args()
     corpus = ROOT/"corpus"
-    docs = manifest(corpus)["documents"]
+    docs = manifest(corpus, verify=False)["documents"]
     if args.command == "resolve":
-        plan = make_plan(args.ref, corpus)
         ledger_repository(args.ledger)
         past = history(Path(args.ledger)/"records", docs)
-        # A poll records a new release/SHA/contract once. Manual dispatch explicitly retries.
-        needed = bool(args.ref) or not any(identity(x) == identity(plan) for x in past)
+        plan, needed = choose_plan(args.ref, corpus, past, latest_only=os.environ.get("GITHUB_EVENT_NAME") == "push")
         write_json(args.plan, plan)
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -236,8 +268,12 @@ def main():
     elif args.command == "build":
         build(Path(args.ledger)/"records", args.out, corpus)
     else:
+        if args.reuse:
+            ledger_repository(args.ledger)
+            build(Path(args.ledger)/"records", args.out, corpus)
+            return
         plan = validate_plan(read_json(args.plan))
-        if plan["corpus_sha256"] != digest(canonical(manifest(corpus))):
+        if plan["corpus_sha256"] != digest(canonical(manifest(corpus, verify=False))):
             raise ValueError("trusted plan/corpus mismatch")
         try:
             measured = read_json(args.measurement)

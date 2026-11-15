@@ -8,3 +8,4 @@ private/
 plan.json
 result.json
 upstream/
+corpus/cache/

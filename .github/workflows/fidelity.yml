@@ -34,6 +34,7 @@ jobs:
         name: Poll stable release and resolve immutable commit
         env:
           REQUESTED_REF: ${{ inputs.ref }}
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/pipeline.py resolve --ref "$REQUESTED_REF"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -81,7 +82,7 @@ jobs:
           retention-days: 14
   publish:
     needs: [resolve, measure]
-    if: always() && needs.resolve.result == 'success' && needs.resolve.outputs.needed == 'true'
+    if: always() && needs.resolve.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -100,6 +101,7 @@ jobs:
         with:
           name: trusted-plan
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.resolve.outputs.needed == 'true'
         continue-on-error: true
         with:
           name: measurement
@@ -107,7 +109,13 @@ jobs:
       - name: Validate whitelist, append durable ledger and build page
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/pipeline.py publish
+          MEASUREMENT_NEEDED: ${{ needs.resolve.outputs.needed }}
+        run: |
+          if [ "$MEASUREMENT_NEEDED" = "true" ]; then
+            python3 scripts/pipeline.py publish
+          else
+            python3 scripts/pipeline.py publish --reuse
+          fi
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:

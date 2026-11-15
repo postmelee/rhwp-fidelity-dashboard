@@ -11,9 +11,9 @@ for attempt in range(30):
         assert "Last complete:" in page
         with urllib.request.urlopen("http://127.0.0.1:8000/summary.json", timeout=2) as r:
             data = json.load(r)
-        assert data["target_documents"] == 0
+        assert type(data["target_documents"]) is int and data["target_documents"] >= 0
         assert data["last_complete"] is None
-        print("HTTP page smoke passed (empty corpus)")
+        print("HTTP page smoke passed (no fabricated results)")
         break
     except OSError:
         time.sleep(0.1)
