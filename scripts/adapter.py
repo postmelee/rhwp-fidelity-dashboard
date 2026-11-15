@@ -5,6 +5,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 import urllib.request
 import urllib.parse
 from pathlib import Path
@@ -148,6 +149,15 @@ def run(upstream, corpus, destination, expected_sha):
         stage = "approved-asset-verification"
         materialize(corpus, documents)
         manifest(corpus)  # Verify actual bytes before any renderer receives inputs.
+        stage = "pdf-raster-preflight"
+        print("Producer stage started: " + stage, flush=True)
+        # Exercise the actual pinned upstream PDF API before expensive engine builds.
+        first_pdf = safe_file(corpus, documents[0]["golden"]["path"])
+        if command([sys.executable, "scripts/visual_sweep_pdf.py", "--pdf", str(first_pdf),
+                    "--dpi", "96", "--prefix", str(work/"pdf-preflight"), "--pages", "1"],
+                   upstream, work/"pdf-preflight.log", timeout=120) != 0:
+            raise ValueError("upstream PDF raster dependency contract failed")
+        print("Producer stage completed: " + stage, flush=True)
         # Exact approved files only; builds and raw captures remain in this disposable job.
         builds = [
             ["cargo", "build", "--locked", "--release", "--bin", "rhwp", "--features", "native-skia"],
@@ -156,13 +166,14 @@ def run(upstream, corpus, destination, expected_sha):
         ]
         for i, args in enumerate(builds):
             stage = ("native-build", "wasm-build", "browser-dependencies")[i]
+            started = time.monotonic()
             print("Producer stage started: " + stage, flush=True)
             log = work/f"build-{i}.log"
             if command(args, upstream, log) != 0:
                 for line in log.read_text(errors="replace").splitlines()[-60:]:
                     print("build diagnostic: " + repr(line), flush=True)
                 raise ValueError("producer build failed")
-            print("Producer stage completed: " + stage, flush=True)
+            print("Producer stage completed: " + stage + " seconds=" + str(round(time.monotonic()-started, 2)), flush=True)
         help_result = subprocess.run([sys.executable, "scripts/visual_sweep.py", "--help"],
                                      cwd=upstream, capture_output=True, timeout=60)
         if help_result.returncode or not all(f.encode() in help_result.stdout for f in REQUIRED):

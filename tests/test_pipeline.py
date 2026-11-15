@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"scripts"))
 import core
 import pipeline
 import adapter
+import wait_pages_artifact
 
 class BoundaryTests(unittest.TestCase):
     def setUp(self):
@@ -224,6 +225,22 @@ class BoundaryTests(unittest.TestCase):
             first = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"b"*64}}])
             changed = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"c"*64}}])
             self.assertNotEqual(first,changed)
+
+class PagesVisibilityTests(unittest.TestCase):
+    def test_delayed_visibility_retries_exact_id(self):
+        batches = iter([[], [{"name":"github-pages","id":10,"expired":False}]])
+        pauses = []
+        wait_pages_artifact.wait(lambda:next(batches), 10, pause=pauses.append, attempts=2)
+        self.assertEqual(pauses,[3])
+
+    def test_wrong_expired_and_duplicate_artifacts_rejected(self):
+        row = {"name":"github-pages","id":10,"expired":False}
+        for artifacts in [[dict(row,id=11)], [dict(row,expired=True)], [row,row]]:
+            self.assertFalse(wait_pages_artifact.ready(artifacts,10))
+
+    def test_invisible_artifact_fails_before_deploy(self):
+        with self.assertRaises(RuntimeError):
+            wait_pages_artifact.wait(lambda:[],10,pause=lambda _:None,attempts=2)
 
 if __name__ == "__main__":
     unittest.main()
