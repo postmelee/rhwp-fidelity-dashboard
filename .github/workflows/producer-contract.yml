@@ -1,0 +1,52 @@
+name: Producer contract
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/producer-contract.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: edwardkim/rhwp
+          ref: c9095c5f67632e6721e800ccc7fb43ea49d26682
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python3 -m pip install Pillow==11.3.0 pypdfium2==4.30.0 fonttools==4.60.1
+      - name: Verify actual upstream PDF and manifest APIs without engine builds
+        run: |
+          python3 - <<'PY'
+          import sys, tempfile
+          from pathlib import Path
+          sys.path.insert(0, str(Path("dashboard/scripts").resolve()))
+          sys.path.insert(0, str(Path("upstream/scripts").resolve()))
+          import adapter, core, visual_sweep as vs, visual_sweep_pdf as pdf
+          root = Path("dashboard/corpus").resolve()
+          docs = core.manifest(root, verify=False)["documents"]
+          adapter.materialize(root, docs)
+          core.manifest(root)
+          vs.ensure_tools("native-skia")
+          with tempfile.TemporaryDirectory() as folder:
+              folder = Path(folder)
+              pdf.rasterize(root/docs[0]["golden"]["path"], 96, folder/"pdf", [1])
+              png = folder/"pdf-001.png"
+              out = folder/"metric"
+              vs.write_silhouette_tsv([(1,png,png)], out, docs[0]["id"], document_counts={"pdf":1,"rhwp":1})
+              assert adapter.consume(out, docs[0], selected=True)["status"] == "partial"
+          print("PDF raster and upstream manifest contract passed; this is not an engine fidelity measurement.")
+          PY
