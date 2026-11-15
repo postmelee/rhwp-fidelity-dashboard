@@ -142,9 +142,9 @@ class BoundaryTests(unittest.TestCase):
         m = {"schema_version":1,"build_sha256":"a"*64,"environment_sha256":"b"*64,
              "backends":{"native":copy.deepcopy(self.backend),"wasm":copy.deepcopy(self.backend)}}
         first = {"source_ref":"v1", "upstream_sha":"1"*40, "status":"complete",
-                 "run_id":1,"attempt":1,"measurement":m}
+                 "run_id":1,"attempt":1,"resolved_at":"2026-01-01T00:00:00Z","measurement":m}
         last = {"source_ref":"v2", "upstream_sha":"2"*40, "status":"failed",
-                "run_id":2,"attempt":1,"measurement":{"schema_version":1,"build_sha256":None,
+                "run_id":2,"attempt":1,"resolved_at":"2026-01-02T00:00:00Z","measurement":{"schema_version":1,"build_sha256":None,
                     "environment_sha256":None,"backends":{b:core.empty_backend() for b in core.BACKENDS}}}
         with tempfile.TemporaryDirectory() as temp:
             with patch.object(pipeline,"manifest",return_value={"documents":self.docs}), patch.object(
@@ -171,13 +171,13 @@ class BoundaryTests(unittest.TestCase):
         with patch.object(pipeline,"stable_releases",return_value=releases), patch.object(
                 pipeline,"resolve_ref",side_effect=lambda tag:(tag+"sha","manual-tag")), patch.object(
                 pipeline,"make_plan",side_effect=plan):
-            prior = plan("v1",None,("v1sha","stable-release"))
+            prior = dict(plan("v1",None,("v1sha","stable-release")), status="complete")
             next_plan, needed = pipeline.choose_plan("",None,[prior])
             self.assertTrue(needed)
             self.assertEqual(next_plan["source_ref"],"v2")
-            last_plan, needed = pipeline.choose_plan("",None,[prior,next_plan])
+            last_plan, needed = pipeline.choose_plan("",None,[prior,dict(next_plan,status="complete")])
             self.assertEqual(last_plan["source_ref"],"v3")
-            _, needed = pipeline.choose_plan("",None,[prior,next_plan,last_plan])
+            _, needed = pipeline.choose_plan("",None,[prior,dict(next_plan,status="complete"),dict(last_plan,status="complete")])
             self.assertFalse(needed)
     def test_retagged_processed_release_is_pending(self):
         prior = {"source_ref":"v1","upstream_sha":"old","corpus_sha256":"c","font_sha256":"f",
@@ -225,6 +225,46 @@ class BoundaryTests(unittest.TestCase):
             first = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"b"*64}}])
             changed = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"c"*64}}])
             self.assertNotEqual(first,changed)
+
+class RetryPolicyTests(unittest.TestCase):
+    def plan(self, tag, corpus=None, resolved=None):
+        return {"source_ref":tag,"upstream_sha":tag+"sha","corpus_sha256":"c",
+                "font_sha256":"f","adapter_sha256":"a","protocol":"p"}
+    def choose(self, tags, past, ref=""):
+        with patch.object(pipeline,"stable_releases",return_value=[{"tag_name":t} for t in tags]), patch.object(
+                pipeline,"resolve_ref",side_effect=lambda tag:(tag+"sha","stable-release")), patch.object(
+                pipeline,"make_plan",side_effect=self.plan):
+            return pipeline.choose_plan(ref,None,past)
+    def record(self, tag, status, time="2026-01-01T00:00:00Z"):
+        return dict(self.plan(tag),status=status,resolved_at=time)
+
+    def test_failed_and_partial_attempts_retry(self):
+        for state in ("failed","partial"):
+            self.assertTrue(self.choose(["v1"],[self.record("v1",state)])[1])
+
+    def test_retry_cap_preserves_history_and_manual_override(self):
+        past = [self.record("v1","failed") for _ in range(3)]
+        before = copy.deepcopy(past)
+        self.assertFalse(self.choose(["v1"],past)[1])
+        self.assertEqual(past,before)
+        self.assertTrue(self.choose(["v1"],past,ref="v1")[1])
+
+    def test_new_release_precedes_retryable_old_failure(self):
+        old = self.record("v1","failed")
+        plan, needed = self.choose(["v1","v2"],[old])
+        self.assertTrue(needed)
+        self.assertEqual(plan["source_ref"],"v2")
+
+    def test_retries_use_least_recent_attempt(self):
+        first = self.record("v1","failed","2026-01-02T00:00:00Z")
+        second = self.record("v2","partial","2026-01-01T00:00:00Z")
+        self.assertEqual(self.choose(["v1","v2"],[second,first])[0]["source_ref"],"v2")
+        retried = self.record("v2","failed","2026-01-03T00:00:00Z")
+        self.assertEqual(self.choose(["v1","v2"],[second,first,retried])[0]["source_ref"],"v1")
+
+    def test_complete_quality_alert_is_not_execution_retry(self):
+        row = dict(self.record("v1","complete"),quality_alert=True)
+        self.assertFalse(self.choose(["v1"],[row])[1])
 
 class PagesVisibilityTests(unittest.TestCase):
     def test_delayed_visibility_retries_exact_id(self):

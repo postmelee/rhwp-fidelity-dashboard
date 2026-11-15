@@ -103,23 +103,35 @@ def stable_releases():
             raise ValueError("release listing exceeds safety bound; no partial selection")
     return sorted(releases.values(), key=lambda r:(r["published_at"], r["id"]))
 
+MAX_AUTOMATIC_ATTEMPTS = 3
+
 def choose_plan(ref, corpus, past, latest_only=False):
     if ref:
         return make_plan(ref, corpus), True
-    processed = {identity(r) for r in past}
     releases = stable_releases()
     if not releases:
         raise ValueError("no stable releases")
-    latest = None
     if latest_only:
         releases = releases[-1:]
-    for release in releases:
+    unseen, retries = [], []
+    latest = None
+    for order, release in enumerate(releases):
         tag = release["tag_name"]
-        sha, _ = resolve_ref(tag)  # Re-resolve tags, including already observed releases.
+        sha, _ = resolve_ref(tag)
         plan = make_plan(tag, corpus, resolved=(sha, "stable-release"))
         latest = plan
-        if identity(plan) not in processed:
-            return plan, True
+        attempts = [r for r in past if identity(r) == identity(plan)]
+        if not attempts:
+            unseen.append(plan)
+            continue
+        last = attempts[-1]  # history() supplies chronological immutable records.
+        if last["status"] not in {"complete", "empty"} and len(attempts) < MAX_AUTOMATIC_ATTEMPTS:
+            retries.append((last.get("resolved_at", ""), order, plan))
+    # Never let retrying an old failure starve an unmeasured stable release.
+    if unseen:
+        return unseen[0], True
+    if retries:
+        return min(retries, key=lambda item:(item[0],item[1]))[2], True
     return latest, False
 
 def history(folder, documents):
@@ -155,7 +167,7 @@ def build(folder, out, corpus):
             c = coverage(backend, docs)
             def number(v):
                 return "unavailable" if v is None else str(round(v, 5))
-            cells = [esc(r["source_ref"]), r["upstream_sha"][:12], b, backend["status"],
+            cells = [esc(r["resolved_at"]), esc(r["source_ref"]), r["upstream_sha"][:12], b, backend["status"],
                      f'{c["measured_docs"]}/{c["target_docs"]}', str(c["failed_docs"]), str(c["skipped_docs"]),
                      f'{c["measured_pages"]}/{c["target_pages"]}', str(c["failed_pages"]), str(c["skipped_pages"]),
                      str(c["unmeasured_pages"]), str(c["page_count_mismatch"]),
@@ -173,11 +185,12 @@ def build(folder, out, corpus):
 <style>body{font:16px system-ui,sans-serif;max-width:1120px;margin:32px auto;padding:0 16px;line-height:1.5;color:#222}a{color:#0645ad}h1{font-size:1.8rem}table{border-collapse:collapse;white-space:nowrap;font-size:.88rem}th,td{border:1px solid #bbb;padding:6px 9px;text-align:left}th{background:#eee}.scroll{overflow-x:auto}code{overflow-wrap:anywhere}summary,select{cursor:pointer}footer{margin-top:32px;color:#555}</style>
 <h1>rhwp fidelity dashboard</h1>
 <p>Independent Hancom Print PDF comparison. No overall “accuracy” percentage.</p>
-<p><b>Latest attempted:</b> LATEST<br><b>Last complete:</b> COMPLETE</p>
+<p><b>Latest recorded attempt:</b> LATEST<br><b>Last recorded complete:</b> COMPLETE</p>
 <p>Corpus: DOCS approved documents / PAGES target pages. EMPTY</p>
 <label>Status <select id="filter"><option value="">All</option><option>complete</option><option>partial</option><option>failed</option><option>empty</option><option>unavailable</option></select></label>
 <div class="scroll"><table><thead><tr>HEADERS</tr></thead><tbody>ROWS</tbody></table></div>
 <h2>Separate evidence</h2>
+<p>Rows retain their original attempt time and runtime environment/build fingerprints in JSON. Redeployment displays historical results; it does not remeasure or establish equivalence with the current runner.</p>
 <ul><li>Golden fidelity: Native Skia and fresh WASM Canvas2D each compared with independent Hancom Print PDF.</li>
 <li>Backend parity: unavailable; similar golden scores do not establish backend equivalence.</li>
 <li>PR regression: unavailable; no unverified PR artifacts included. Tested merge tree and actual PR head must be distinguished.</li></ul>
@@ -188,14 +201,14 @@ def build(folder, out, corpus):
 <p><a href="https://github.com/postmelee/rhwp-fidelity-dashboard">Source, operation and corpus requirements</a></p>
 <footer>Only schema-validated numbers and approved metadata are published. No original documents, fonts, upstream HTML or screenshots are served here.</footer>
 <script>document.getElementById('filter').addEventListener('change',e=>{document.querySelectorAll('tbody tr').forEach(r=>r.hidden=!!e.target.value&&r.dataset.status!==e.target.value)})</script></html>"""
-    headers = ["Release/ref", "Engine SHA", "Backend", "Status", "Docs measured/target",
+    headers = ["Attempt time (UTC)", "Release/ref", "Engine SHA", "Backend", "Status", "Docs measured/target",
                "Docs failed", "Docs skipped", "Pages measured/target", "Pages failed", "Pages skipped",
                "Pages unmeasured", "Count mismatches", "Median", "P10", "Min", "Below 90", "Quality alert", "Provenance"]
     for old, new in {"LATEST":label(latest), "COMPLETE":label(complete), "DOCS":str(len(docs)),
                      "PAGES":str(sum(d["pages"] for d in docs)),
                      "EMPTY":"No measurements available." if not docs else "",
                      "HEADERS":"".join("<th>"+h+"</th>" for h in headers),
-                     "ROWS":"".join(rows) or '<tr><td colspan="18">unavailable — no runs yet</td></tr>'}.items():
+                     "ROWS":"".join(rows) or '<tr><td colspan="19">unavailable — no runs yet</td></tr>'}.items():
         content = content.replace(old, new)
     (out/"index.html").write_text(content)
     write_json(out/"summary.json", {"latest_attempted": latest, "last_complete": complete,

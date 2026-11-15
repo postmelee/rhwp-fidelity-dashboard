@@ -4,9 +4,11 @@
 
 현재 corpus는 upstream이 기여자 공통 검사로 지정한 **4개 문서, 각 1쪽**입니다. 원본/PDF를 다시 만들거나 이 저장소에 재배포하지 않습니다. 고정 commit에서 기존 파일을 임시 다운로드하고 SHA-256을 확인합니다. 공개 웹폰트도 실행기에만 공급합니다. Pages와 data branch에는 검증된 숫자 및 허용 메타데이터만 기록합니다. [재사용 근거와 4개 페어](corpus/PROVENANCE.md)를 확인하세요. 실행이 완료되지 않은 결과는 unavailable/failed/partial이며 점수를 만들지 않습니다.
 
+[실제 검증 기록과 초기 실패 수정 내역](docs/VERIFICATION.md)을 확인할 수 있습니다. PDFium은 upstream 계약과 같은 **pypdfium2 5.13.0**으로 고정하고, 실제 PDF raster preflight를 엔진 빌드 전에 수행합니다.
+
 ## 구조와 자동화
 
-1. **resolve**는 6시간마다 GitHub REST stable release 목록을 끝까지 페이지네이션하고 draft/prerelease를 제외합니다. published time/id 순서로 아직 측정하지 않은 가장 오래된 항목 하나를 선택합니다. 중단 중 여러 release가 생겨도 다음 poll들이 backlog를 순서대로 처리합니다. 과거 unsupported release도 누락시키지 않고 실패/미지원 결과를 남깁니다.
+1. **resolve**는 6시간마다 GitHub REST stable release 목록을 끝까지 페이지네이션하고 draft/prerelease를 제외합니다. published time/id 순서로 아직 측정하지 않은 가장 오래된 항목 하나를 선택합니다. 중단 중 여러 release가 생겨도 다음 poll들이 backlog를 순서대로 처리합니다. 과거 unsupported release도 누락시키지 않고 실패/미지원 결과를 남깁니다. 미측정 release를 실패 재시도보다 우선합니다. 모든 release에 기록이 있으면 failed/partial 중 가장 오래전에 시도한 항목을 다시 측정하며, 같은 immutable identity의 보존된 시도가 총 3회에 이르면 자동 재시도를 멈춥니다. 완주한 quality alert는 실행 실패로 재시도하지 않습니다.
 2. 이미 관측한 tag도 actual commit까지 다시 해석합니다. annotated tag chain을 지원하며 재태깅된 SHA는 별도 기록입니다. 수동 tag/40자리 SHA는 재시도할 수 있습니다. main push는 최신 stable을 확인하며, schedule은 과거 backlog를 처리합니다.
 3. **measure**는 쓰기 권한 없는 별도 runner에서 `edwardkim/rhwp` **전체 소스**를 exact commit SHA로 checkout합니다. Visual Sweep 일부 파일을 떼어 복사하지 않습니다. 같은 checkout에서 Native CLI와 fresh WASM을 빌드합니다.
 4. 각 문서/backend의 1페이지 smoke가 완료되면 전쪽을 새 출력 디렉터리에서 측정합니다. Native와 WASM 각각 독립 PDF와 비교하며 서로를 golden으로 사용하지 않습니다.
@@ -25,7 +27,7 @@ gh workflow run fidelity.yml -R postmelee/rhwp-fidelity-dashboard -f ref=67b4ff8
 gh run list -R postmelee/rhwp-fidelity-dashboard
 ```
 
-ref를 비우면 stable backlog를 처리합니다. 실패한 같은 계약을 다시 측정하려면 ref를 지정합니다. 재배포만 필요하면 다음 poll이 자동으로 처리합니다. schedule 자체가 GitHub에서 비활성화되거나 resolver가 네트워크 오류로 실패하면 해당 Actions 상태를 확인해야 합니다.
+ref를 비우면 stable backlog를 처리합니다. 실패한 같은 계약을 3회 제한 이후에도 다시 측정하려면 ref를 지정합니다. 수동 실행은 항상 허용되며 보존된 시도 수에는 포함됩니다. 제한은 data branch에 보존된 측정 시도를 기준으로 하므로 ledger 기록 자체가 실패한 인프라 장애는 Actions에서 별도로 확인해야 합니다. 재배포만 필요하면 다음 poll이 자동으로 처리합니다. schedule 자체가 GitHub에서 비활성화되거나 resolver가 네트워크 오류로 실패하면 해당 Actions 상태를 확인해야 합니다.
 
 Python 3.12 이상에서:
 
@@ -59,7 +61,7 @@ Raw silhouette는 96dpi, RGB 232 ink threshold와 2px dilation tolerance의 모�
 
 exit 1은 완전한 manifest·페이지 목록·PDF 쪽수 계약이 확인되면 quality alert로 보존합니다. 그 외 실행 실패는 failed/partial입니다. 누락 데이터는 0이나 100으로 대체하지 않습니다. latest attempted와 last complete는 별도로 표시합니다.
 
-현재 corpus hash에 해당하는 실행만 화면에 보이고, 이전 빈 corpus 등의 기록은 data branch에 보존합니다. JSON은 engine/dashboard SHA, source ref/type/time, protocol, corpus/font/adapter fingerprint와 실제 environment/build fingerprint를 제공합니다.
+현재 corpus hash에 해당하는 실행만 화면에 보이고, 이전 빈 corpus 등의 기록은 data branch에 보존합니다. 재배포는 원래 시각·환경의 과거 결과를 다시 보여 줄 뿐이며 현재 runner/build와 동등하다는 뜻이 아닙니다. identity의 선언된 코드·corpus·font 계약과 실제 실행 후 environment/build fingerprint를 구별합니다. JSON은 engine/dashboard SHA, source ref/type/time, protocol, corpus/font/adapter fingerprint와 실제 environment/build fingerprint를 제공합니다.
 
 ## 기존 전체 oracle 카탈로그
 

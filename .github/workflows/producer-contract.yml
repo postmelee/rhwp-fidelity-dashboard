@@ -51,28 +51,3 @@ jobs:
           print("PDF raster and upstream manifest contract passed; this is not an engine fidelity measurement.")
           PY
 
-  supersede_invalid_run:
-    needs: contract
-    if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: write
-    steps:
-      - name: Stop only the obsolete run with the incompatible PDF dependency
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python3 - <<'PY'
-          import json, os, urllib.request
-          url = "https://api.github.com/repos/postmelee/rhwp-fidelity-dashboard/actions/runs/43747020016"
-          headers = {"Authorization":"Bearer "+os.environ["GH_TOKEN"], "Accept":"application/vnd.github+json"}
-          with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as response:
-              run = json.load(response)
-          assert run["head_sha"] == "7ec3d2a64f84094366eac26728918a114164f2dd"
-          if run["status"] != "completed":
-              with urllib.request.urlopen(urllib.request.Request(url+"/cancel",headers=headers,method="POST"),timeout=30) as response:
-                  assert response.status == 202
-              print("Cancelled the obsolete 4.30.0 run after the corrected PDF contract passed.")
-          else:
-              print("Obsolete run already completed; no action taken.")
-          PY
