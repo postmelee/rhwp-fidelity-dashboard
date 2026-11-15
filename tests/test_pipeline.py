@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"scripts"))
 import core
 import pipeline
 import adapter
+import presentation
 import wait_pages_artifact
 
 class BoundaryTests(unittest.TestCase):
@@ -17,6 +18,18 @@ class BoundaryTests(unittest.TestCase):
         self.backend = {"status":"complete", "exit_code":1, "quality_alert":True,
                         "documents":[{"id":"sample", "status":"complete", "pdf_pages":2,
                                       "rendered_pages":2, "scores":[{"page":1,"raw":89.1},{"page":2,"raw":95}]}]}
+    def test_pairing_requires_same_complete_count_matched_document(self):
+        record = {"measurement":{"backends":{"native":copy.deepcopy(self.backend),"wasm":copy.deepcopy(self.backend)}}}
+        rows = presentation.paired_pages(record,self.docs)
+        self.assertEqual(rows[0], ("sample",1,89.1,89.1,0))
+        record["measurement"]["backends"]["native"]["documents"][0]["rendered_pages"] = 3
+        self.assertTrue(all(row[2:] == (None,None,None) for row in presentation.paired_pages(record,self.docs)))
+        record["measurement"]["backends"]["native"]["documents"] = []
+        self.assertTrue(all(row[2:] == (None,None,None) for row in presentation.paired_pages(record,self.docs)))
+    def test_pairing_never_fills_missing_page_with_zero(self):
+        record = {"measurement":{"backends":{"native":copy.deepcopy(self.backend),"wasm":copy.deepcopy(self.backend)}}}
+        record["measurement"]["backends"]["wasm"]["documents"][0]["scores"].pop()
+        self.assertEqual(presentation.paired_pages(record,self.docs)[1][2:], (None,None,None))
     def test_quality_exit_one_is_complete(self):
         self.assertEqual(core.validate_backend(self.backend, self.docs)["status"], "complete")
         self.assertEqual(core.coverage(self.backend, self.docs)["below90"], 1)

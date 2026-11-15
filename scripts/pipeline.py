@@ -188,7 +188,7 @@ def build(folder, out, corpus):
 <p><b>Latest recorded attempt:</b> LATEST<br><b>Last recorded complete:</b> COMPLETE</p>
 <p>Corpus: DOCS approved documents / PAGES target pages. EMPTY</p>
 <label>Status <select id="filter"><option value="">All</option><option>complete</option><option>partial</option><option>failed</option><option>empty</option><option>unavailable</option></select></label>
-<div class="scroll"><table><thead><tr>HEADERS</tr></thead><tbody>ROWS</tbody></table></div>
+<div class="scroll"><table id="history"><thead><tr>HEADERS</tr></thead><tbody>ROWS</tbody></table></div>
 <h2>Separate evidence</h2>
 <p>Rows retain their original attempt time and runtime environment/build fingerprints in JSON. Redeployment displays historical results; it does not remeasure or establish equivalence with the current runner.</p>
 <ul><li>Golden fidelity: Native Skia and fresh WASM Canvas2D each compared with independent Hancom Print PDF.</li>
@@ -200,7 +200,7 @@ def build(folder, out, corpus):
 <p>Only current-corpus runs appear here. Older corpus records remain on the data branch. No scores are combined across engine SHA, protocol, font or adapter identities. Empty corpus means no approved independent golden pairs are available.</p>
 <p><a href="https://github.com/postmelee/rhwp-fidelity-dashboard">Source, operation and corpus requirements</a></p>
 <footer>Only schema-validated numbers and approved metadata are published. No original documents, fonts, upstream HTML or screenshots are served here.</footer>
-<script>document.getElementById('filter').addEventListener('change',e=>{document.querySelectorAll('tbody tr').forEach(r=>r.hidden=!!e.target.value&&r.dataset.status!==e.target.value)})</script></html>"""
+<script>document.getElementById('filter').addEventListener('change',e=>{document.querySelectorAll('#history tbody tr').forEach(r=>r.hidden=!!e.target.value&&r.dataset.status!==e.target.value)})</script></html>"""
     headers = ["Attempt time (UTC)", "Release/ref", "Engine SHA", "Backend", "Status", "Docs measured/target",
                "Docs failed", "Docs skipped", "Pages measured/target", "Pages failed", "Pages skipped",
                "Pages unmeasured", "Count mismatches", "Median", "P10", "Min", "Below 90", "Quality alert", "Provenance"]
@@ -210,6 +210,8 @@ def build(folder, out, corpus):
                      "HEADERS":"".join("<th>"+h+"</th>" for h in headers),
                      "ROWS":"".join(rows) or '<tr><td colspan="19">unavailable — no runs yet</td></tr>'}.items():
         content = content.replace(old, new)
+    from presentation import comparison_html
+    content = content.replace("<h2>Separate evidence</h2>", comparison_html(records, docs) + "<h2>Separate evidence</h2>")
     (out/"index.html").write_text(content)
     write_json(out/"summary.json", {"latest_attempted": latest, "last_complete": complete,
                                   "target_documents":len(docs), "target_pages":sum(d["pages"] for d in docs)})

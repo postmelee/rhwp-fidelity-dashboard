@@ -51,7 +51,7 @@
 4. 위 확인 뒤에도 필요한 golden만 사용자의 Hancom PDF export MCP 후보로 남깁니다. 새 출력 전에 원하는 버전과 font 환경을 고정하고 Print receipt, 원본/PDF hash를 보존해야 합니다.
 5. 검증된 쌍만 dashboard manifest에 등록하고 smoke 후 전체 승인 corpus를 측정합니다. 별도 Hancom 버전과 engine SHA 결과를 섞어 하나의 점수로 만들지 않습니다.
 
-이번 작업에서는 Hancom MCP를 호출하거나 기존 정답지를 재출력하지 않았습니다. raw 자료의 공개 재배포 허가를 추정하지 않습니다.
+이 corpus는 기존 Print PDF를 재사용합니다. raw 자료의 공개 재배포 허가를 추정하지 않습니다.
 
 ## MCP refresh 결과의 검증
 
