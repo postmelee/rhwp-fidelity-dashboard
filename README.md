@@ -61,6 +61,10 @@ exit 1은 완전한 manifest·페이지 목록·PDF 쪽수 계약이 확인되�
 
 현재 corpus hash에 해당하는 실행만 화면에 보이고, 이전 빈 corpus 등의 기록은 data branch에 보존합니다. JSON은 engine/dashboard SHA, source ref/type/time, protocol, corpus/font/adapter fingerprint와 실제 environment/build fingerprint를 제공합니다.
 
+## 기존 전체 oracle 카탈로그
+
+기존 upstream resolver·catalog 생성기를 재사용해 실제 audit를 실행했습니다. [재생성 결과, 범위와 누락 PDF 검토 절차](corpus/ORACLE_CATALOG.md)를 참고하세요. 기존 체크인 보고서의 수치는 서로 달랐으며, catalog 후보를 Print 출처나 공개 허가로 간주하지 않습니다.
+
 ## 추가 corpus
 
 `corpus/manifest.json`의 실제 4개 항목을 schema 예제로 사용하세요. 원본과 독립 Hancom Print PDF의 실제 대응, source snapshot, SHA-256, 쪽수, compat, font 계약과 사용 근거를 먼저 확인해야 합니다. 이름이 비슷하거나 같은 저장소에 있다는 이유만으로 승인하지 않습니다.
