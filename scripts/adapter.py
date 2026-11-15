@@ -54,6 +54,9 @@ def inventory(extra_font_root=None):
     values["installed_font_hashes"] = sorted(fonts)
     return digest(canonical(values))
 
+def runtime_environment_digest(font_root, receipts):
+    return digest(canonical({"inventory_sha256":inventory(font_root), "runtime_receipts":receipts}))
+
 def consume(base, document, selected=False, backend=None):
     raw = read_json(base / "silhouette_manifest.json")
     if backend is not None:
@@ -130,6 +133,7 @@ def run(upstream, corpus, destination, expected_sha):
     destination.parent.mkdir(parents=True, exist_ok=True)
     work = destination.parent / "private"
     work.mkdir(exist_ok=True)
+    runtime_receipts = []
     stage = "checkout-contract"
     try:
         actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=upstream, text=True).strip()
@@ -191,7 +195,15 @@ def run(upstream, corpus, destination, expected_sha):
                     if smoke:
                         args += ["--page", "1"]
                     code = command(args, upstream, work/f"{backend}-{d['id']}-{'smoke' if smoke else 'full'}.log")
-                    return code, consume(out/d["id"], d, selected=smoke, backend=backend)
+                    base = out/d["id"]
+                    row = consume(base, d, selected=smoke, backend=backend)
+                    if not smoke:
+                        raw = read_json(base/"silhouette_manifest.json")
+                        metadata = base/("native-export.json" if backend == "native" else "wasm-export-complete.json")
+                        runtime_receipts.append({"id":d["id"], "backend":backend,
+                            "upstream_provenance":raw.get("provenance"),
+                            "export_receipt_sha256":digest(metadata.read_bytes())})
+                    return code, row
                 try:
                     smoke_code, smoke_row = invoke(True)
                     if smoke_code not in (0, 1) or smoke_row["status"] != "partial":
@@ -213,6 +225,9 @@ def run(upstream, corpus, destination, expected_sha):
                     any(s["raw"] < 90 for r in rows for s in r["scores"]) or
                     any(r["pdf_pages"] != r["rendered_pages"] for r in rows),
                 "documents": rows}
+        # Includes upstream font_supply/native_webfont_fallback and actual export receipts,
+        # not only the declared pre-run font files.
+        result["environment_sha256"] = runtime_environment_digest(corpus/"cache/fonts", runtime_receipts)
         validate_measurement(result, documents)
         return result
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

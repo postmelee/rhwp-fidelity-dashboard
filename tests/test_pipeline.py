@@ -219,5 +219,11 @@ class BoundaryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 adapter.consume(root,doc,backend="native")
 
+    def test_runtime_font_receipt_changes_environment_fingerprint(self):
+        with patch.object(adapter,"inventory",return_value="a"*64):
+            first = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"b"*64}}])
+            changed = adapter.runtime_environment_digest(None,[{"font_supply":{"sha256":"c"*64}}])
+            self.assertNotEqual(first,changed)
+
 if __name__ == "__main__":
     unittest.main()

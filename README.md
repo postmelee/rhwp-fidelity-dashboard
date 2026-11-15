@@ -44,7 +44,7 @@ Checks workflow가 단위 테스트, actionlint, 페이지 build와 HTTP smoke�
 - 원본/PDF snapshot: `67b4ff8d3a55e5bb50c46a44315de749a4ef07a7`의 contributor catalog. 측정 엔진 SHA는 매 실행 별도로 resolve하므로 corpus 파일 버전과 혼동하지 않습니다.
 - Native: `cargo build --locked --release --bin rhwp --features native-skia`.
 - WASM: upstream `scripts/wasm-pack-locked.sh --target web --release`; `npm ci --prefix rhwp-studio`.
-- Fontconfig/Freetype, Poppler, Pillow, PDFium, fonttools, Rust/WASM, Node/Chrome을 사용합니다. 실제 실행 환경·설치 및 공급 font inventory, native/WASM/lockfile fingerprint를 보존합니다.
+- Fontconfig/Freetype, Poppler, Pillow, PDFium, fonttools, Rust/WASM, Node/Chrome을 사용합니다. 실제 실행 환경·설치 및 공급 font inventory, native/WASM/lockfile fingerprint를 보존합니다. 측정 후 environment fingerprint에는 upstream의 실제 font_supply/native_webfont_fallback provenance와 export receipt hash도 포함합니다.
 - CLI flag static probe 및 runtime `--help`를 확인합니다. `--file-target KEY DOC PDF`, `--out`, `--rasterizer png`, `--silhouette-only`, `--dpi 96`, `--compat`를 명시합니다. WASM에는 `--wasm-pkg`를 전달합니다.
 - 현재 4개 PDF는 `compat=2022`입니다. 2024 golden을 추가하면 반드시 `2024`를 명시합니다.
 - 현재 font environment는 upstream 기여자 검사와 동일하게 **명시적 substitution 없음**이며 공개 웹폰트를 공급합니다. `font_environment.path=null`이 이 계약을 나타냅니다. 검증된 별도 mapping을 등록하면 `--font-environment`를 전달할 수 있습니다.
