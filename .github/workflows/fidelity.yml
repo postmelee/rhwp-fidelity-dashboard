@@ -122,14 +122,29 @@ jobs:
             python3 scripts/pipeline.py publish --reuse
           fi
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - name: Archive trusted numeric site
+        run: |
+          python3 - <<'PY'
+          import tarfile
+          from pathlib import Path
+          with tarfile.open("artifact.tar", "w") as archive:
+              for path in sorted(Path("site").rglob("*")):
+                  if path.is_symlink():
+                      raise ValueError("site symlink rejected")
+                  if path.is_file():
+                      archive.add(path, arcname=str(path.relative_to("site")), recursive=False)
+          PY
       - id: pages_artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          path: site
+          name: github-pages
+          path: artifact.tar
+          retention-days: 1
+          overwrite: true
       - name: Wait for exact artifact visibility
         env:
           GH_TOKEN: ${{ github.token }}
-          PAGES_ARTIFACT_ID: ${{ steps.pages_artifact.outputs.artifact_id }}
+          PAGES_ARTIFACT_ID: ${{ steps.pages_artifact.outputs.artifact-id }}
         run: python3 scripts/wait_pages_artifact.py
       - name: Deploy using OIDC
         id: deployment
