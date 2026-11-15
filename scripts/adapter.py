@@ -54,8 +54,18 @@ def inventory(extra_font_root=None):
     values["installed_font_hashes"] = sorted(fonts)
     return digest(canonical(values))
 
-def consume(base, document, selected=False):
+def consume(base, document, selected=False, backend=None):
     raw = read_json(base / "silhouette_manifest.json")
+    if backend is not None:
+        p = raw.get("provenance", {})
+        run_metadata = read_json(base / "run_manifest.json")
+        if (p.get("hwp", {}).get("sha256") != document["document"]["sha256"]
+                or p.get("pdf", {}).get("sha256") != document["golden"]["sha256"]
+                or p.get("layout_generation") != document["compat"]
+                or p.get("raster_backend") != {"native":"native-skia","wasm":"wasm-canvas2d"}[backend]
+                or p.get("comparison_profile") != "print" or run_metadata.get("dpi") != 96
+                or raw.get("excluded_regions")):
+            raise ValueError("output input/backend/protocol provenance mismatch")
     counts = raw.get("pr_review_gate", {}).get("document_page_counts") or {}
     metrics = raw.get("metrics", [])
     row = {"id": document["id"], "status": "failed",
@@ -164,6 +174,7 @@ def run(upstream, corpus, destination, expected_sha):
             rows, codes = [], []
             for d in documents:
                 def invoke(smoke):
+                    manifest(corpus)  # Recheck inputs after build and before each comparison.
                     out = work/backend/("smoke" if smoke else "full")/d["id"]
                     args = [sys.executable, "scripts/visual_sweep.py",
                             "--silhouette-only", "--rasterizer", "png", "--dpi", "96",
@@ -180,7 +191,7 @@ def run(upstream, corpus, destination, expected_sha):
                     if smoke:
                         args += ["--page", "1"]
                     code = command(args, upstream, work/f"{backend}-{d['id']}-{'smoke' if smoke else 'full'}.log")
-                    return code, consume(out/d["id"], d, selected=smoke)
+                    return code, consume(out/d["id"], d, selected=smoke, backend=backend)
                 try:
                     smoke_code, smoke_row = invoke(True)
                     if smoke_code not in (0, 1) or smoke_row["status"] != "partial":

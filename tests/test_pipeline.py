@@ -208,5 +208,16 @@ class BoundaryTests(unittest.TestCase):
             self.assertIs(d["publication"]["raw_files"],False)
             self.assertTrue(d["document"]["source"].startswith("https://raw.githubusercontent.com/edwardkim/rhwp/"))
 
+    def test_adapter_rejects_wrong_input_provenance(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            core.write_json(root/"silhouette_manifest.json", {"provenance":{
+                "hwp":{"sha256":"x"*64},"pdf":{"sha256":"b"*64},"layout_generation":"2022",
+                "raster_backend":"native-skia","comparison_profile":"print"}})
+            core.write_json(root/"run_manifest.json", {"dpi":96})
+            doc = {"document":{"sha256":"a"*64},"golden":{"sha256":"b"*64},"compat":"2022"}
+            with self.assertRaises(ValueError):
+                adapter.consume(root,doc,backend="native")
+
 if __name__ == "__main__":
     unittest.main()

@@ -60,6 +60,10 @@ jobs:
           ref: ${{ needs.resolve.outputs.sha }}
           path: upstream
           persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        if: needs.resolve.outputs.has_corpus == 'true'
+        with:
+          python-version: '3.12'
       - name: Install build dependencies
         if: needs.resolve.outputs.has_corpus == 'true'
         run: |
@@ -67,7 +71,7 @@ jobs:
           sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
           python3 -m pip install Pillow==11.3.0 pypdfium2==4.30.0 fonttools==4.60.1
           rustup target add wasm32-unknown-unknown
-          cargo install wasm-pack --version 0.13.1 --locked
+          cargo install wasm-pack --version 0.15.0 --locked
       - name: Probe, smoke and measure approved corpus
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.sha }}
@@ -123,3 +127,5 @@ jobs:
       - name: Deploy using OIDC
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+      - name: Verify deployed public URL and exact JSON
+        run: python3 scripts/verify_live_site.py

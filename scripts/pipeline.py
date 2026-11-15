@@ -77,8 +77,8 @@ def make_plan(ref, corpus, resolved=None):
          "upstream_sha": sha, "source_ref": ref, "source_kind": kind, "protocol": PROTOCOL,
          "corpus_sha256": digest(canonical(m)),
          "font_sha256": digest(canonical([{k:d[k] for k in ("id", "fonts", "font_environment")} for d in m["documents"]])),
-         "adapter_sha256": digest(b"".join((ROOT/"scripts"/f).read_bytes()
-                                 for f in ("core.py", "adapter.py", "pipeline.py")))}
+         "adapter_sha256": digest(b"".join((ROOT/f).read_bytes() for f in (
+             "scripts/core.py", "scripts/adapter.py", "scripts/pipeline.py", ".github/workflows/fidelity.yml")))}
     return validate_plan(p)
 
 def identity(p):
