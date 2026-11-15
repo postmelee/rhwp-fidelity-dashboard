@@ -13,7 +13,7 @@ for attempt in range(30):
             observed = json.load(response)
         with urllib.request.urlopen(base + suffix, timeout=15) as response:
             page = response.read().decode()
-        if observed == expected and "rhwp fidelity dashboard" in page and 'id="filter"' in page:
+        if observed == expected and "rhwp fidelity dashboard" in page and 'id="filter"' in page and "Canvas2D and Skia against the same Hancom golden" in page:
             print("Live Pages HTML and exact summary verified: " + base)
             break
     except (OSError, ValueError):

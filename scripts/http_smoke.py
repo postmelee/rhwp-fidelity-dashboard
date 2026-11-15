@@ -8,6 +8,7 @@ for attempt in range(30):
             page = r.read().decode()
         assert "rhwp fidelity dashboard" in page
         assert "overflow-x:auto" in page
+        assert "Canvas2D and Skia against the same Hancom golden" in page
         assert "Last recorded complete:" in page
         assert "Redeployment displays historical results" in page
         with urllib.request.urlopen("http://127.0.0.1:8000/summary.json", timeout=2) as r:

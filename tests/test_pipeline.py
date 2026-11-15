@@ -159,6 +159,9 @@ class BoundaryTests(unittest.TestCase):
         last = {"source_ref":"v2", "upstream_sha":"2"*40, "status":"failed",
                 "run_id":2,"attempt":1,"resolved_at":"2026-01-02T00:00:00Z","measurement":{"schema_version":1,"build_sha256":None,
                     "environment_sha256":None,"backends":{b:core.empty_backend() for b in core.BACKENDS}}}
+        for record in (first,last):
+            record.update(dashboard_sha="3"*40, source_kind="stable-release", protocol=core.PROTOCOL,
+                          corpus_sha256="c"*64, font_sha256="d"*64, adapter_sha256="e"*64)
         with tempfile.TemporaryDirectory() as temp:
             with patch.object(pipeline,"manifest",return_value={"documents":self.docs}), patch.object(
                     pipeline,"history",return_value=[first,last]):
@@ -166,6 +169,12 @@ class BoundaryTests(unittest.TestCase):
             summary = core.read_json(Path(temp)/"site/summary.json")
             self.assertEqual(summary["latest_attempted"]["run_id"],2)
             self.assertEqual(summary["last_complete"]["run_id"],1)
+            page = (Path(temp)/"site/index.html").read_text()
+            self.assertIn("Skia minus Canvas2D (points)", page)
+            self.assertIn("Page-count equal/known docs", page)
+            self.assertIn("Document and page details", page)
+            self.assertIn("Reproduction and provenance", page)
+            self.assertIn("89.1", page)
 
     def test_release_pagination_filters_and_orders_every_page(self):
         def release(i, **kwargs):
