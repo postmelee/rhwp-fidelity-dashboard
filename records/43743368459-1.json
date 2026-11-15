@@ -1,0 +1,92 @@
+{
+  "adapter_sha256": "cba467f485d84a2f7b62699f12cddd70694e9f7023627cf33bd7408abccebb68",
+  "attempt": 1,
+  "corpus_sha256": "689bae252c852803f6eca367a3c37eb726efd612536c28caad85fa3be6145430",
+  "dashboard_sha": "a040c9f1c6b75a9000f046e20ec1cf1420bdf5d4",
+  "font_sha256": "5408324936ea947c1350bec1c13267f88a1bcd15ea25eeebe8123504ec1c55bc",
+  "measurement": {
+    "backends": {
+      "native": {
+        "documents": [
+          {
+            "id": "52ee61fe7201e36b",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "59f6ab1155623bda",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "cdacd874b6e6ac66",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "d03a9dde3d5dc7ac",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          }
+        ],
+        "exit_code": 2,
+        "quality_alert": false,
+        "status": "failed"
+      },
+      "wasm": {
+        "documents": [
+          {
+            "id": "52ee61fe7201e36b",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "59f6ab1155623bda",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "cdacd874b6e6ac66",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          },
+          {
+            "id": "d03a9dde3d5dc7ac",
+            "pdf_pages": null,
+            "rendered_pages": null,
+            "scores": [],
+            "status": "failed"
+          }
+        ],
+        "exit_code": 2,
+        "quality_alert": false,
+        "status": "failed"
+      }
+    },
+    "build_sha256": "69c9adaa3841b37bba8153aba90655d57d5b26fd995d20a8b8f2f8fb815d9852",
+    "environment_sha256": "5ca9b62a9226bafded1b95bd2380ceb4731b46829427c5a61d1710993285b090",
+    "schema_version": 1
+  },
+  "protocol": "silhouette-96dpi-rgb232-radius2-v1",
+  "resolved_at": "2026-11-15T17:50:44Z",
+  "run_id": 43743368459,
+  "schema_version": 1,
+  "source_kind": "stable-release",
+  "source_ref": "v0.9.0",
+  "status": "failed",
+  "upstream_sha": "c9095c5f67632e6721e800ccc7fb43ea49d26682"
+}
