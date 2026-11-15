@@ -1,0 +1,162 @@
+"""Runs only in the credential-free measurement job. Raw outputs never leave it."""
+import ast
+import json
+import os
+import platform
+import subprocess
+import sys
+from pathlib import Path
+from core import *
+
+REQUIRED = {"--file-target", "--font-environment", "--out", "--silhouette-only",
+            "--rasterizer", "--wasm-pkg", "--compat", "--rhwp-bin", "--dpi", "--page"}
+
+def probe(root):
+    source = (root / "scripts/visual_sweep.py").read_text()
+    tree = ast.parse(source)
+    strings = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    if not REQUIRED <= strings:
+        raise ValueError("unsupported sweep CLI contract")
+    for name in ("visual_sweep_workers.py", "visual_sweep_images.py",
+                 "visual_sweep_pdf.py", "visual_sweep_resume.py"):
+        if not (root / "scripts" / name).is_file():
+            raise ValueError("incomplete upstream checkout")
+    return digest(source.encode())
+
+def command(args, cwd, log=None, timeout=3600):
+    # Never use a shell or print supplied document paths into public output.
+    with open(log or os.devnull, "wb") as stream:
+        return subprocess.run(args, cwd=cwd, stdout=stream, stderr=subprocess.STDOUT,
+                              timeout=timeout, check=False).returncode
+
+def inventory():
+    values = {"platform": platform.platform(), "python": sys.version,
+              "image": os.environ.get("ImageVersion", "unavailable")}
+    for name, args in {
+        "rust": ["rustc", "--version"], "node": ["node", "--version"],
+        "cargo": ["cargo", "--version"], "wasm_pack": ["wasm-pack", "--version"],
+        "python_packages": [sys.executable, "-m", "pip", "freeze"],
+        "chrome": ["google-chrome", "--version"],
+    }.items():
+        try:
+            p = subprocess.run(args, capture_output=True, timeout=30, check=False)
+            values[name] = digest(p.stdout + p.stderr)
+        except (OSError, subprocess.TimeoutExpired):
+            values[name] = None
+    fonts = []
+    for directory in (Path("/usr/share/fonts"), Path.home()/".local/share/fonts"):
+        if directory.exists():
+            fonts += sorted(digest(p.read_bytes()) for p in directory.rglob("*")
+                            if p.is_file() and p.suffix.lower() in (".ttf", ".otf", ".ttc"))
+    values["installed_font_hashes"] = sorted(fonts)
+    return digest(canonical(values))
+
+def consume(base, document, selected=False):
+    raw = read_json(base / "silhouette_manifest.json")
+    counts = raw.get("pr_review_gate", {}).get("document_page_counts") or {}
+    metrics = raw.get("metrics", [])
+    row = {"id": document["id"], "status": "failed",
+           "pdf_pages": counts.get("pdf"), "rendered_pages": counts.get("rhwp"), "scores": []}
+    # Never publish diagnostic strings, image paths, HTML, render trees or source text.
+    for item in metrics:
+        row["scores"].append({"page": item["page"], "raw": item["silhouette_raw_match_percent"]})
+    expected = {1} if selected else set(range(1, document["pages"]+1))
+    if (raw.get("run_state") == "complete" and set(raw.get("completed_pages", [])) == expected
+            and {p["page"] for p in row["scores"]} == expected
+            and counts.get("pdf") == document["pages"]):
+        row["status"] = "partial" if selected else "complete"
+    return row
+
+def run(upstream, corpus, destination, expected_sha):
+    upstream, corpus, destination = map(lambda p: Path(p).resolve(), (upstream, corpus, destination))
+    documents = manifest(corpus)["documents"]
+    result = {"schema_version": 1, "environment_sha256": None, "build_sha256": None,
+              "backends": {b: empty_backend() for b in BACKENDS}}
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    work = destination.parent / "private"
+    work.mkdir(exist_ok=True)
+    try:
+        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=upstream, text=True).strip()
+        if actual != match(SHA, expected_sha):
+            raise ValueError("upstream SHA mismatch")
+        probe(upstream)
+        if not documents:
+            for b in BACKENDS:
+                result["backends"][b]["status"] = "empty"
+            return result
+        # Exact approved files only; builds and raw captures remain in this disposable job.
+        builds = [
+            ["cargo", "build", "--locked", "--release", "--bin", "rhwp", "--features", "native-skia"],
+            ["sh", "scripts/wasm-pack-locked.sh", "--target", "web", "--release"],
+            ["npm", "ci", "--prefix", "rhwp-studio"],
+        ]
+        for i, args in enumerate(builds):
+            if command(args, upstream, work/f"build-{i}.log") != 0:
+                raise ValueError("producer build failed")
+        help_result = subprocess.run([sys.executable, "scripts/visual_sweep.py", "--help"],
+                                     cwd=upstream, capture_output=True, timeout=60)
+        if help_result.returncode or not all(f.encode() in help_result.stdout for f in REQUIRED):
+            raise ValueError("runtime CLI contract failed")
+        binary = upstream/"target/release/rhwp"
+        package = upstream/"pkg"
+        result["build_sha256"] = digest(canonical({
+            name: digest(path.read_bytes()) for name, path in {
+                "native": binary, "wasm": package/"rhwp_bg.wasm", "javascript": package/"rhwp.js",
+                "cargo_lock": upstream/"Cargo.lock",
+                "npm_lock": upstream/"rhwp-studio/package-lock.json",
+            }.items()}))
+        result["environment_sha256"] = inventory()
+        for backend in BACKENDS:
+            rows, codes = [], []
+            for d in documents:
+                def invoke(smoke):
+                    out = work/backend/("smoke" if smoke else "full")/d["id"]
+                    args = [sys.executable, "scripts/visual_sweep.py",
+                            "--silhouette-only", "--rasterizer", "png", "--dpi", "96",
+                            "--compat", d["compat"], "--rhwp-bin", str(binary),
+                            "--font-environment", str(safe_file(corpus, d["font_environment"]["path"])),
+                            "--out", str(out), "--file-target", d["id"],
+                            str(safe_file(corpus, d["document"]["path"])),
+                            str(safe_file(corpus, d["golden"]["path"]))]
+                    for f in d["fonts"]:
+                        args += ["--font-path", str(safe_file(corpus, f["path"]))]
+                    if backend == "wasm":
+                        args += ["--wasm-pkg", str(package)]
+                    if smoke:
+                        args += ["--page", "1"]
+                    code = command(args, upstream, work/f"{backend}-{d['id']}-{'smoke' if smoke else 'full'}.log")
+                    return code, consume(out/d["id"], d, selected=smoke)
+                try:
+                    smoke_code, smoke_row = invoke(True)
+                    if smoke_code not in (0, 1) or smoke_row["status"] != "partial":
+                        raise ValueError("smoke failed")
+                    code, row = invoke(False)
+                    # Exit 1 is a quality warning only when complete manifests prove coverage.
+                    if code not in (0, 1):
+                        row["status"] = "failed"
+                    codes.append(code)
+                    rows.append(row)
+                except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+                    codes.append(2)
+                    rows.append({"id": d["id"], "status": "failed", "pdf_pages": None,
+                                 "rendered_pages": None, "scores": []})
+            complete = all(r["status"] == "complete" for r in rows)
+            result["backends"][backend] = {
+                "status": "complete" if complete else "partial" if any(r["scores"] for r in rows) else "failed",
+                "exit_code": max(codes), "quality_alert": any(c == 1 for c in codes) or
+                    any(s["raw"] < 90 for r in rows for s in r["scores"]) or
+                    any(r["pdf_pages"] != r["rendered_pages"] for r in rows),
+                "documents": rows}
+        validate_measurement(result, documents)
+        return result
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        for b in BACKENDS:
+            result["backends"][b]["status"] = "failed"
+        return result
+    finally:
+        write_json(destination, result)
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        raise SystemExit("usage: adapter.py UPSTREAM CORPUS RESULT SHA")
+    run(*sys.argv[1:])

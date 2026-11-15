@@ -1,0 +1,117 @@
+name: Fidelity
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Upstream tag or exact 40-character commit SHA; blank polls latest stable release'
+        type: string
+        required: false
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: fidelity-ledger
+  cancel-in-progress: false
+jobs:
+  resolve:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      needed: ${{ steps.plan.outputs.needed }}
+      has_corpus: ${{ steps.plan.outputs.has_corpus }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Test trusted code
+        run: python3 -m unittest discover -s tests -v
+      - id: plan
+        name: Poll stable release and resolve immutable commit
+        env:
+          REQUESTED_REF: ${{ inputs.ref }}
+        run: python3 scripts/pipeline.py resolve --ref "$REQUESTED_REF"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: trusted-plan
+          path: plan.json
+          retention-days: 14
+  measure:
+    needs: resolve
+    if: needs.resolve.outputs.needed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - name: Full upstream source at exact commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: edwardkim/rhwp
+          ref: ${{ needs.resolve.outputs.sha }}
+          path: upstream
+          persist-credentials: false
+      - name: Install build dependencies
+        if: needs.resolve.outputs.has_corpus == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
+          python3 -m pip install Pillow==11.3.0 pypdfium2==4.30.0 fonttools==4.60.1
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack --version 0.13.1 --locked
+      - name: Probe, smoke and measure approved corpus
+        env:
+          ENGINE_SHA: ${{ needs.resolve.outputs.sha }}
+        run: python3 dashboard/scripts/adapter.py upstream dashboard/corpus result.json "$ENGINE_SHA"
+      - name: Upload only numeric result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: measurement
+          path: result.json
+          if-no-files-found: warn
+          retention-days: 14
+  publish:
+    needs: [resolve, measure]
+    if: always() && needs.resolve.result == 'success' && needs.resolve.outputs.needed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Fresh trusted dashboard checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: trusted-plan
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        continue-on-error: true
+        with:
+          name: measurement
+          path: incoming
+      - name: Validate whitelist, append durable ledger and build page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/pipeline.py publish
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: site
+      - name: Deploy using OIDC
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e

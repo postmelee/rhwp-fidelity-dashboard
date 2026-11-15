@@ -1,0 +1,21 @@
+"""Exercise the generated page over HTTP without a browser dependency."""
+import json
+import time
+import urllib.request
+for attempt in range(30):
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8000/index.html", timeout=2) as r:
+            page = r.read().decode()
+        assert "rhwp fidelity dashboard" in page
+        assert "overflow-x:auto" in page
+        assert "Last complete:" in page
+        with urllib.request.urlopen("http://127.0.0.1:8000/summary.json", timeout=2) as r:
+            data = json.load(r)
+        assert data["target_documents"] == 0
+        assert data["last_complete"] is None
+        print("HTTP page smoke passed (empty corpus)")
+        break
+    except OSError:
+        time.sleep(0.1)
+else:
+    raise SystemExit("HTTP smoke failed")
