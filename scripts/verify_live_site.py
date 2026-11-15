@@ -5,6 +5,7 @@ import time
 import urllib.request
 
 expected = json.loads(Path("site/summary.json").read_text())
+expected_page = Path("site/index.html").read_text()
 base = "https://postmelee.github.io/rhwp-fidelity-dashboard/"
 for attempt in range(30):
     try:
@@ -13,8 +14,8 @@ for attempt in range(30):
             observed = json.load(response)
         with urllib.request.urlopen(base + suffix, timeout=15) as response:
             page = response.read().decode()
-        if observed == expected and "rhwp fidelity dashboard" in page and 'id="filter"' in page and "Canvas2D and Skia against the same Hancom golden" in page:
-            print("Live Pages HTML and exact summary verified: " + base)
+        if observed == expected and page == expected_page and "Canvas2D and Skia against the same Hancom golden" in page:
+            print("Live Pages exact HTML and summary verified: " + base)
             break
     except (OSError, ValueError):
         pass
