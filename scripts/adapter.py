@@ -156,11 +156,13 @@ def run(upstream, corpus, destination, expected_sha):
         ]
         for i, args in enumerate(builds):
             stage = ("native-build", "wasm-build", "browser-dependencies")[i]
+            print("Producer stage started: " + stage, flush=True)
             log = work/f"build-{i}.log"
             if command(args, upstream, log) != 0:
                 for line in log.read_text(errors="replace").splitlines()[-60:]:
                     print("build diagnostic: " + repr(line), flush=True)
                 raise ValueError("producer build failed")
+            print("Producer stage completed: " + stage, flush=True)
         help_result = subprocess.run([sys.executable, "scripts/visual_sweep.py", "--help"],
                                      cwd=upstream, capture_output=True, timeout=60)
         if help_result.returncode or not all(f.encode() in help_result.stdout for f in REQUIRED):
@@ -194,7 +196,9 @@ def run(upstream, corpus, destination, expected_sha):
                         args += ["--wasm-pkg", str(package)]
                     if smoke:
                         args += ["--page", "1"]
+                    print("Measurement started: " + backend + "/" + d["id"] + ("/smoke" if smoke else "/full"), flush=True)
                     code = command(args, upstream, work/f"{backend}-{d['id']}-{'smoke' if smoke else 'full'}.log")
+                    print("Measurement process exited: " + backend + "/" + d["id"] + " code=" + str(code), flush=True)
                     base = out/d["id"]
                     row = consume(base, d, selected=smoke, backend=backend)
                     if not smoke:
@@ -214,7 +218,8 @@ def run(upstream, corpus, destination, expected_sha):
                         row["status"] = "failed"
                     codes.append(code)
                     rows.append(row)
-                except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+                except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
+                    print("Measurement contract failed: " + backend + "/" + d["id"] + " (" + type(error).__name__ + ")", flush=True)
                     codes.append(2)
                     rows.append({"id": d["id"], "status": "failed", "pdf_pages": None,
                                  "rendered_pages": None, "scores": []})
