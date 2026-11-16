@@ -1,0 +1,34 @@
+{
+  "adapter_sha256": "4b92396dde5bc4df4bfc588e4ccc08842d6ecc97f8dabb0d95eb44903da0fafb",
+  "attempt": 1,
+  "corpus_sha256": "689bae252c852803f6eca367a3c37eb726efd612536c28caad85fa3be6145430",
+  "dashboard_sha": "75054caa63fea11005c573a3ac1ec8642f39e831",
+  "font_sha256": "5408324936ea947c1350bec1c13267f88a1bcd15ea25eeebe8123504ec1c55bc",
+  "measurement": {
+    "backends": {
+      "native": {
+        "documents": [],
+        "exit_code": null,
+        "quality_alert": false,
+        "status": "failed"
+      },
+      "wasm": {
+        "documents": [],
+        "exit_code": null,
+        "quality_alert": false,
+        "status": "failed"
+      }
+    },
+    "build_sha256": null,
+    "environment_sha256": null,
+    "schema_version": 1
+  },
+  "protocol": "silhouette-96dpi-rgb232-radius2-v1",
+  "resolved_at": "2026-11-16T06:34:46Z",
+  "run_id": 43817690230,
+  "schema_version": 1,
+  "source_kind": "stable-release",
+  "source_ref": "v0.6.0",
+  "status": "failed",
+  "upstream_sha": "f1964b54b788b42f05daf5e9bb58bb9ef6d28f93"
+}
