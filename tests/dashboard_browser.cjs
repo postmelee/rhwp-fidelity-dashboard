@@ -31,6 +31,22 @@ async function test(browser) {
     assert.deepEqual(await largest.allTextContents(), ["pic-crop-01.hwp","1","94.65178","99.99756","+5.34578"]);
     await page.reload();
     assert.match(await selected.innerText(), /v0\.9\.0 · Smoke complete/);
+    const v090 = await picker.inputValue();
+    await page.locator("#tab-renderers").click();
+    assert.equal(await picker.inputValue(), v090);
+    assert.equal(await page.locator("#renderers details:visible").count(), 1);
+    assert.match(await page.locator("#renderers").innerText(), /94.65178/);
+    await page.locator("#tab-documents").click();
+    await page.reload();
+    assert.equal(await picker.inputValue(), v090);
+    assert.equal(await page.locator("#documents details:visible").count(), 1);
+    assert.match(await page.locator("#documents").innerText(), /pic-crop-01.hwp/);
+    await picker.selectOption({index: 0});
+    assert.match(await page.locator("#documents").innerText(), /No measurements available/);
+    await page.goBack();
+    assert.equal(await picker.inputValue(), v090);
+    await page.locator("#tab-overview").click();
+    assert.match(await selected.innerText(), /90% raw silhouette on 4\/4 compared pages/);
     await picker.selectOption({index: 0});
     assert.equal(await selected.locator("table").count(), 0);
     await page.locator("#tab-overview").focus();
@@ -43,7 +59,7 @@ async function test(browser) {
     await expectTab(page, "overview");
     await page.keyboard.press("ArrowLeft");
     await expectTab(page, "methods");
-    assert.equal(new URL(page.url()).hash, "#methods");
+    assert.ok(new URL(page.url()).hash.startsWith("#methods?release="));
     await page.goBack();
     await expectTab(page, "overview");
     await page.goForward();
@@ -57,6 +73,8 @@ async function test(browser) {
     assert.match(await failed.innerText(), /Pages publish job failed/);
     await page.locator("#filter").selectOption("complete");
     assert.ok(!(await failed.isVisible()));
+    assert.match(await page.locator("#filter-result").innerText(), /0 of 16 attempts/);
+    await page.locator("#all-history").check();
     assert.match(await page.locator("#filter-result").innerText(), /3 of 16 attempts/);
     await page.evaluate(id => { location.hash = "#run-" + id; }, completeRun);
     await page.locator("#run-" + completeRun + "[open]").waitFor();
@@ -71,19 +89,27 @@ async function test(browser) {
     const numeric = await (await page.request.get(base + "records/" + completeRun + ".json")).json();
     const snapshot = await (await page.request.get(base + "summary.json")).json();
     assert.deepEqual(snapshot.last_complete, numeric);
-    const table = comparison.getByRole("table", {name: "Matched pages in this attempt"});
-    const scoreHeader = table.getByRole("button", {name: "Canvas2D vs Hancom"});
+    const metrics = comparison.getByRole("table", {name: "Backend coverage and silhouette"});
+    assert.deepEqual(await metrics.locator("thead th button").allTextContents(), ["Metric", "WASM Canvas2D", "Native Skia"]);
+    await comparison.getByRole("link", {name: "Document and page details"}).click();
+    const table = page.locator("#document-" + completeRun + " table");
+    const scoreHeader = table.getByRole("button", {name: "Canvas2D vs Hancom (%)", exact: true});
     await scoreHeader.click();
     assert.equal(await scoreHeader.locator("..").getAttribute("aria-sort"), "ascending");
     const cells = await table.locator("tbody tr:first-child td").allTextContents();
-    const wasm = numeric.measurement.backends.wasm.documents.find(doc => doc.id === cells[0]);
-    const native = numeric.measurement.backends.native.documents.find(doc => doc.id === cells[0]);
-    assert.equal(Number(cells[2]), wasm.scores[0].raw);
-    assert.equal(Number(cells[3]), native.scores[0].raw);
+    assert.equal(cells[0], "pic-crop-01.hwp");
     assert.equal(Number(cells[2]), Math.min(...numeric.measurement.backends.wasm.documents.map(d => d.scores[0].raw)));
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    const region = comparison.getByRole("region", {name: "Matched pages in this attempt"});
-    assert.ok(await region.evaluate(node => node.scrollWidth > node.clientWidth));
+    assert.equal(Number(cells[4]), +(Number(cells[3]) - Number(cells[2])).toFixed(5));
+    for (const width of [320, 360, 1024]) {
+        await page.setViewportSize({width, height: 800});
+        for (const id of ["overview", "renderers", "documents", "history", "methods"]) {
+            await page.locator("#tab-" + id).click();
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+            for (const region of await page.locator(".scroll:visible").all()) {
+                assert.ok(await region.evaluate(node => node.scrollWidth <= node.clientWidth));
+            }
+        }
+    }
     await page.goto(base + "#document-" + failedRun);
     await expectTab(page, "documents");
     assert.match(await page.locator("#document-" + failedRun).innerText(), /unavailable/);

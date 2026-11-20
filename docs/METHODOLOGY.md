@@ -32,4 +32,17 @@ WASM Canvas2D는 측정 SHA에서 새로 빌드한 browser Canvas2D 경로이며
 
 각 실행의 요약과 문서·페이지 상세는 열 제목으로 정렬할 수 있습니다. 쪽수 일치율은 쪽수를 아는 문서 중 같은 문서의 비율이고, 쪽수 미상 문서를 별도로 표시합니다. 직접 backend parity와 PR regression, 이미지 비교는 아직 제공하지 않습니다. 허가 없는 원본 및 이미지는 게시하지 않습니다.
 
+## 릴리즈 탐색과 추가 지표
+
+상단 선택기는 관측한 최신 안정 릴리즈를 먼저 보여 주고, 기록된 안정 버전을 숫자 순으로 정렬합니다. 같은 태그라도 SHA가 다르면 각각 표시합니다. 개요·렌더러·문서 탭은 선택한 SHA의 최근 완료 실행을 사용하고, 완료 기록이 없으면 가장 최근 시도를 보여 줍니다. 특정 실행 링크에서는 그 실행을 직접 검토할 수 있습니다. 실행 이력에서 모든 버전을 펼칠 수 있습니다.
+
+개요의 ‘두 렌더러가 90% 이상인 쪽’은 동일 실행에서 쪽수까지 확인한 비교 가능 페이지가 분모입니다. 측정 범위는 별도로 전체 대상 대비 비교 가능 페이지 수로 표시합니다. 쪽수 일치의 분모는 각 백엔드에서 두 쪽수를 모두 아는 문서입니다. 미측정 릴리즈에는 과거 버전의 수치를 이월하지 않습니다.
+
+| 추가 증거 | 해석 및 연결 조건 |
+|---|---|
+| [Oracle Public Advisory](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/.github/workflows/oracle-public-advisory.yml) | 더 넓은 표본의 조판 충실도를 볼 첫 후보입니다. 해당 엔진 SHA, 승인된 원본/PDF 짝, 실제 완료 verdict와 범위를 확인한 뒤 MATCH/(MATCH+MISMATCH), 오류·미짝·미측정 수를 별도로 표시할 수 있습니다. 이 CI는 쪽수를 비교하며, 렌더 픽셀은 검사하지 않습니다. |
+| [시각 검증 정책](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/mydocs/manual/verification/visual_verification_governance.md) | 동일 조건 base/head를 확보하면 백엔드별 2%p 초과 하락 페이지 수와 최대 하락폭을 표시할 수 있습니다. 보호 쪽의 98%와 직접 판독은 지정 조건과 증거가 필요합니다. |
+| [fidelity_compare](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/tools/fidelity_compare/README.md) | 텍스트 누락·중복·다른 쪽 배치 후보와 검토 완료 건수를 구분하면 실루엣이 놓치는 작은 오류를 설명할 수 있습니다. |
+| [Render Diff](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/.github/workflows/render-diff.yml) · [Full Renderer Sweep](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/.github/workflows/full-renderer-sweep.yml) | 동일 조건으로 두 트리가 그린 페이지 수, 허용차 초과 페이지 수, fallback을 검증하면 내부 출력 경로의 일관성을 별도로 표시할 수 있습니다. Full Renderer Sweep은 수동 실행이며 각 아티팩트의 실제 비교 대상을 확인해야 합니다. |
+
 [운영](OPERATIONS.md) · [문서 목록](README.md)
