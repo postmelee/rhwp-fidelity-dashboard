@@ -3,11 +3,9 @@
 import argparse
 import base64
 import datetime as dt
-import html
 import os
 import re
 import subprocess
-import tempfile
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -17,6 +15,10 @@ ROOT = Path(__file__).resolve().parent.parent
 PLAN_KEYS = "schema_version run_id attempt resolved_at dashboard_sha upstream_sha source_kind source_ref corpus_sha256 font_sha256 adapter_sha256 protocol"
 REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,127}")
 TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+# The measure job and both producer files match the old 75054ca release byte for byte.
+LEGACY_ADAPTER = "4b92396dde5bc4df4bfc588e4ccc08842d6ecc97f8dabb0d95eb44903da0fafb"
+SCOPED_BASELINE = "88562a87a210776b86b88f51050443e7ff07226afc65dee74b0ed30be96c4a6d"
 
 def api(path):
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
@@ -64,6 +66,20 @@ def validate_plan(p):
         match(HASH, p[k])
     return p
 
+def producer_fingerprint(root):
+    workflow = (root / ".github/workflows/fidelity.yml").read_bytes()
+    if re.search(rb"^(env|defaults):", workflow, re.M):
+        raise ValueError("declare measurement environment and defaults in the measure job")
+    job = re.search(rb"^  measure:\n.*?(?=^  [a-zA-Z0-9_-]+:\n|\Z)", workflow, re.M | re.S)
+    if job is None:
+        raise ValueError("cannot locate the measurement job")
+    return digest(b"\0".join([
+        (root / "scripts/core.py").read_bytes(),
+        (root / "scripts/adapter.py").read_bytes(),
+        job.group(),
+    ]))
+
+
 def make_plan(ref, corpus, resolved=None):
     m = manifest(corpus, verify=False)
     if resolved is not None:
@@ -77,12 +93,15 @@ def make_plan(ref, corpus, resolved=None):
          "upstream_sha": sha, "source_ref": ref, "source_kind": kind, "protocol": PROTOCOL,
          "corpus_sha256": digest(canonical(m)),
          "font_sha256": digest(canonical([{k:d[k] for k in ("id", "fonts", "font_environment")} for d in m["documents"]])),
-         "adapter_sha256": digest(b"".join((ROOT/f).read_bytes() for f in (
-             "scripts/core.py", "scripts/adapter.py", "scripts/pipeline.py", ".github/workflows/fidelity.yml")))}
+         "adapter_sha256": producer_fingerprint(ROOT)}
     return validate_plan(p)
 
 def identity(p):
-    return tuple(p[k] for k in ("source_ref", "upstream_sha", "corpus_sha256", "font_sha256", "adapter_sha256", "protocol"))
+    producer = p["adapter_sha256"]
+    if producer == LEGACY_ADAPTER:
+        producer = SCOPED_BASELINE
+    return (p["source_ref"], p["upstream_sha"], p["corpus_sha256"], p["font_sha256"],
+            producer, p["protocol"])
 
 
 def stable_releases():
@@ -105,14 +124,12 @@ def stable_releases():
 
 MAX_AUTOMATIC_ATTEMPTS = 3
 
-def choose_plan(ref, corpus, past, latest_only=False):
+def choose_plan(ref, corpus, past):
     if ref:
         return make_plan(ref, corpus), True
     releases = stable_releases()
     if not releases:
         raise ValueError("no stable releases")
-    if latest_only:
-        releases = releases[-1:]
     unseen, retries = [], []
     latest = None
     for order, release in enumerate(releases):
@@ -129,7 +146,8 @@ def choose_plan(ref, corpus, past, latest_only=False):
             retries.append((last.get("resolved_at", ""), order, plan))
     # Never let retrying an old failure starve an unmeasured stable release.
     if unseen:
-        return unseen[0], True
+        # Measure the latest stable release promptly, then drain the older backlog.
+        return (latest if unseen[-1] is latest else unseen[0]), True
     if retries:
         return min(retries, key=lambda item:(item[0],item[1]))[2], True
     return latest, False
@@ -151,70 +169,23 @@ def history(folder, documents):
     return sorted(result, key=lambda r:(r["resolved_at"], r["run_id"], r["attempt"]))
 
 def build(folder, out, corpus):
+    from preview_presentation import render_site
+
     docs = manifest(corpus, verify=False)["documents"]
     records = history(folder, docs)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    latest = records[-1] if records else None
-    complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
-    esc = html.escape
-    def label(r):
-        return "unavailable" if r is None else esc(r["source_ref"]) + " / " + r["upstream_sha"][:12] + " / " + r["status"]
-    rows = []
-    for r in reversed(records):
-        for b in BACKENDS:
-            backend = r["measurement"]["backends"][b]
-            c = coverage(backend, docs)
-            def number(v):
-                return "unavailable" if v is None else str(round(v, 5))
-            cells = [esc(r["resolved_at"]), esc(r["source_ref"]), r["upstream_sha"][:12], b, backend["status"],
-                     f'{c["measured_docs"]}/{c["target_docs"]}', str(c["failed_docs"]), str(c["skipped_docs"]),
-                     f'{c["measured_pages"]}/{c["target_pages"]}', str(c["failed_pages"]), str(c["skipped_pages"]),
-                     str(c["unmeasured_pages"]), str(c["page_count_mismatch"]),
-                     number(c["median"]), number(c["p10"]), number(c["min"]), str(c["below90"]),
-                     "yes" if backend["quality_alert"] else "no"]
-            url = "https://github.com/edwardkim/rhwp/commit/" + r["upstream_sha"]
-            cells[1] = '<a href="' + url + '">' + cells[1] + '</a>'
-            record_name = f'{r["run_id"]}-{r["attempt"]}.json'
-            write_json(out/"records"/record_name, r)
-            cells += ['<a href="records/' + record_name + '">JSON</a>']
-            rows.append('<tr data-status="' + backend["status"] + '">' + ''.join("<td>"+c+"</td>" for c in cells)+"</tr>")
-    content = """<!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>rhwp fidelity dashboard</title>
-<style>body{font:16px system-ui,sans-serif;max-width:1120px;margin:32px auto;padding:0 16px;line-height:1.5;color:#222}a{color:#0645ad}h1{font-size:1.8rem}table{border-collapse:collapse;white-space:nowrap;font-size:.88rem}th,td{border:1px solid #bbb;padding:6px 9px;text-align:left}th{background:#eee}.scroll{overflow-x:auto}code{overflow-wrap:anywhere}summary,select{cursor:pointer}footer{margin-top:32px;color:#555}</style>
-<h1>rhwp fidelity dashboard</h1>
-<p>Independent Hancom Print PDF comparison. No overall “accuracy” percentage.</p>
-<p><b>Latest recorded attempt:</b> LATEST<br><b>Last recorded complete:</b> COMPLETE</p>
-<p>Corpus: DOCS approved documents / PAGES target pages. EMPTY</p>
-<label>Status <select id="filter"><option value="">All</option><option>complete</option><option>partial</option><option>failed</option><option>empty</option><option>unavailable</option></select></label>
-<div class="scroll"><table id="history"><thead><tr>HEADERS</tr></thead><tbody>ROWS</tbody></table></div>
-<h2>Separate evidence</h2>
-<p>Rows retain their original attempt time and runtime environment/build fingerprints in JSON. Redeployment displays historical results; it does not remeasure or establish equivalence with the current runner.</p>
-<ul><li>Golden fidelity: Native Skia and fresh WASM Canvas2D each compared with independent Hancom Print PDF.</li>
-<li>Backend parity: unavailable; similar golden scores do not establish backend equivalence.</li>
-<li>PR regression: unavailable; no unverified PR artifacts included. Tested merge tree and actual PR head must be distinguished.</li></ul>
-<h2>Method and limitations</h2>
-<p>Raw content silhouette at 96 dpi, RGB 232 ink threshold and 2 px dilation tolerance. This is a shape-overlap aid, not semantic accuracy, typography certification or visual approval. Median, nearest-rank P10, minimum and pages below 90 are page-weighted within one immutable run and backend. Missing scores are never zero or 100.</p>
-<p>Measured/target counts show scope. Failed, skipped and unmeasured pages remain visible. Page-count mismatches are quality alerts even when all expected golden pages have scores. Exit 1 can be a completed quality alert; execution failure is separate.</p>
-<p>Only current-corpus runs appear here. Older corpus records remain on the data branch. No scores are combined across engine SHA, protocol, font or adapter identities. Empty corpus means no approved independent golden pairs are available.</p>
-<p><a href="https://github.com/postmelee/rhwp-fidelity-dashboard">Source, operation and corpus requirements</a></p>
-<footer>Only schema-validated numbers and approved metadata are published. No original documents, fonts, upstream HTML or screenshots are served here.</footer>
-<script>document.getElementById('filter').addEventListener('change',e=>{document.querySelectorAll('#history tbody tr').forEach(r=>r.hidden=!!e.target.value&&r.dataset.status!==e.target.value)})</script></html>"""
-    headers = ["Attempt time (UTC)", "Release/ref", "Engine SHA", "Backend", "Status", "Docs measured/target",
-               "Docs failed", "Docs skipped", "Pages measured/target", "Pages failed", "Pages skipped",
-               "Pages unmeasured", "Count mismatches", "Median", "P10", "Min", "Below 90", "Quality alert", "Provenance"]
-    for old, new in {"LATEST":label(latest), "COMPLETE":label(complete), "DOCS":str(len(docs)),
-                     "PAGES":str(sum(d["pages"] for d in docs)),
-                     "EMPTY":"No measurements available." if not docs else "",
-                     "HEADERS":"".join("<th>"+h+"</th>" for h in headers),
-                     "ROWS":"".join(rows) or '<tr><td colspan="19">unavailable — no runs yet</td></tr>'}.items():
-        content = content.replace(old, new)
-    from presentation import comparison_html
-    content = content.replace("<h2>Separate evidence</h2>", comparison_html(records, docs) + "<h2>Separate evidence</h2>")
-    (out/"index.html").write_text(content)
-    write_json(out/"summary.json", {"latest_attempted": latest, "last_complete": complete,
-                                  "target_documents":len(docs), "target_pages":sum(d["pages"] for d in docs)})
+    for record in records:
+        name = f'{record["run_id"]}-{record["attempt"]}.json'
+        write_json(out / "records" / name, record)
+    render_site(out, records, docs)
+    write_json(out / "summary.json", {
+        "latest_attempted": records[-1] if records else None,
+        "last_complete": next((r for r in reversed(records) if r["status"] == "complete"), None),
+        "target_documents": len(docs),
+        "target_pages": sum(d["pages"] for d in docs),
+    })
+
 
 def git(args, cwd, env=None, check=True):
     return subprocess.run(["git", *args], cwd=cwd, env=env, text=True, capture_output=True, check=check)
@@ -263,11 +234,13 @@ def main():
     b = sub.add_parser("build")
     b.add_argument("--ledger", default="ledger")
     b.add_argument("--out", default="site")
+    b.add_argument("--fetch-ledger", action="store_true")
     i = sub.add_parser("publish")
     i.add_argument("--plan", default="plan.json")
     i.add_argument("--measurement", default="incoming/result.json")
     i.add_argument("--ledger", default="ledger")
     i.add_argument("--out", default="site")
+    i.add_argument("--record-only", action="store_true")
     i.add_argument("--reuse", action="store_true", help="Rebuild/deploy ledger without creating a measurement attempt")
     args = p.parse_args()
     corpus = ROOT/"corpus"
@@ -275,12 +248,14 @@ def main():
     if args.command == "resolve":
         ledger_repository(args.ledger)
         past = history(Path(args.ledger)/"records", docs)
-        plan, needed = choose_plan(args.ref, corpus, past, latest_only=os.environ.get("GITHUB_EVENT_NAME") == "push")
+        plan, needed = choose_plan(args.ref, corpus, past)
         write_json(args.plan, plan)
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write(f"sha={plan['upstream_sha']}\nneeded={'true' if needed else 'false'}\nhas_corpus={'true' if docs else 'false'}\n")
     elif args.command == "build":
+        if args.fetch_ledger:
+            ledger_repository(args.ledger)
         build(Path(args.ledger)/"records", args.out, corpus)
     else:
         if args.reuse:
@@ -310,7 +285,8 @@ def main():
                  "user.email=41898282+github-actions[bot]@users.noreply.github.com",
                  "commit", "-m", "Record immutable fidelity attempt"], args.ledger, env)
             git(["push", "origin", "HEAD:refs/heads/data"], args.ledger, env)
-        build(Path(args.ledger)/"records", args.out, corpus)
+        if not args.record_only:
+            build(Path(args.ledger)/"records", args.out, corpus)
 
 if __name__ == "__main__":
     main()

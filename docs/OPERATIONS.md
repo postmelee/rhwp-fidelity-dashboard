@@ -5,10 +5,11 @@ Pages Source는 **GitHub Actions**로 설정합니다. Actions의 contents/pages
 ```sh
 gh workflow run fidelity.yml -R postmelee/rhwp-fidelity-dashboard -f ref=v0.9.0
 gh workflow run fidelity.yml -R postmelee/rhwp-fidelity-dashboard -f ref=67b4ff8d3a55e5bb50c46a44315de749a4ef07a7
+gh workflow run pages.yml -R postmelee/rhwp-fidelity-dashboard
 gh run list -R postmelee/rhwp-fidelity-dashboard
 ```
 
-ref를 비우면 stable backlog를 처리합니다. 실패한 같은 계약을 3회 제한 이후에도 다시 측정하려면 ref를 지정합니다. 수동 실행은 항상 허용되며 보존된 시도 수에는 포함됩니다. 제한은 data branch에 보존된 측정 시도를 기준으로 하므로 ledger 기록 자체가 실패한 인프라 장애는 Actions에서 별도로 확인해야 합니다. 재배포만 필요하면 다음 poll이 자동으로 처리합니다. schedule 자체가 GitHub에서 비활성화되거나 resolver가 네트워크 오류로 실패하면 해당 Actions 상태를 확인해야 합니다.
+ref를 비우면 stable backlog를 처리합니다. 실패한 같은 계약을 3회 제한 이후에도 다시 측정하려면 ref를 지정합니다. 수동 실행은 항상 허용되며 보존된 시도 수에는 포함됩니다. 제한은 data branch에 보존된 측정 시도를 기준으로 하므로 ledger 기록 자체가 실패한 인프라 장애는 Actions에서 별도로 확인해야 합니다. 재배포만 필요하면 **Pages → Run workflow**를 실행합니다. Pages는 원장만 읽고 HTML과 JSON을 게시한 뒤 실제 공개 파일을 대조합니다. schedule 자체가 GitHub에서 비활성화되거나 resolver가 네트워크 오류로 실패하면 해당 Actions 상태를 확인해야 합니다.
 
 이 저장소를 clone한 뒤 저장소 루트에서 Python 3.12 이상으로 실행합니다. 아래 로컬 명령은 빈 ledger의 페이지를 검증하며 upstream 엔진을 빌드하지 않습니다:
 
