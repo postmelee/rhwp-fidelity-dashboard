@@ -3,7 +3,6 @@
 import argparse
 import base64
 import datetime as dt
-import html
 import os
 import re
 import subprocess
@@ -151,70 +150,22 @@ def history(folder, documents):
     return sorted(result, key=lambda r:(r["resolved_at"], r["run_id"], r["attempt"]))
 
 def build(folder, out, corpus):
+    from presentation import render_site
+
     docs = manifest(corpus, verify=False)["documents"]
     records = history(folder, docs)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    latest = records[-1] if records else None
-    complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
-    esc = html.escape
-    def label(r):
-        return "unavailable" if r is None else esc(r["source_ref"]) + " / " + r["upstream_sha"][:12] + " / " + r["status"]
-    rows = []
-    for r in reversed(records):
-        for b in BACKENDS:
-            backend = r["measurement"]["backends"][b]
-            c = coverage(backend, docs)
-            def number(v):
-                return "unavailable" if v is None else str(round(v, 5))
-            cells = [esc(r["resolved_at"]), esc(r["source_ref"]), r["upstream_sha"][:12], b, backend["status"],
-                     f'{c["measured_docs"]}/{c["target_docs"]}', str(c["failed_docs"]), str(c["skipped_docs"]),
-                     f'{c["measured_pages"]}/{c["target_pages"]}', str(c["failed_pages"]), str(c["skipped_pages"]),
-                     str(c["unmeasured_pages"]), str(c["page_count_mismatch"]),
-                     number(c["median"]), number(c["p10"]), number(c["min"]), str(c["below90"]),
-                     "yes" if backend["quality_alert"] else "no"]
-            url = "https://github.com/edwardkim/rhwp/commit/" + r["upstream_sha"]
-            cells[1] = '<a href="' + url + '">' + cells[1] + '</a>'
-            record_name = f'{r["run_id"]}-{r["attempt"]}.json'
-            write_json(out/"records"/record_name, r)
-            cells += ['<a href="records/' + record_name + '">JSON</a>']
-            rows.append('<tr data-status="' + backend["status"] + '">' + ''.join("<td>"+c+"</td>" for c in cells)+"</tr>")
-    content = """<!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>rhwp fidelity dashboard</title>
-<style>body{font:16px system-ui,sans-serif;max-width:1120px;margin:32px auto;padding:0 16px;line-height:1.5;color:#222}a{color:#0645ad}h1{font-size:1.8rem}table{border-collapse:collapse;white-space:nowrap;font-size:.88rem}th,td{border:1px solid #bbb;padding:6px 9px;text-align:left}th{background:#eee}.scroll{overflow-x:auto}code{overflow-wrap:anywhere}summary,select{cursor:pointer}footer{margin-top:32px;color:#555}</style>
-<h1>rhwp fidelity dashboard</h1>
-<p>Independent Hancom Print PDF comparison. No overall “accuracy” percentage.</p>
-<p><b>Latest recorded attempt:</b> LATEST<br><b>Last recorded complete:</b> COMPLETE</p>
-<p>Corpus: DOCS approved documents / PAGES target pages. EMPTY</p>
-<label>Status <select id="filter"><option value="">All</option><option>complete</option><option>partial</option><option>failed</option><option>empty</option><option>unavailable</option></select></label>
-<div class="scroll"><table id="history"><thead><tr>HEADERS</tr></thead><tbody>ROWS</tbody></table></div>
-<h2>Separate evidence</h2>
-<p>Rows retain their original attempt time and runtime environment/build fingerprints in JSON. Redeployment displays historical results; it does not remeasure or establish equivalence with the current runner.</p>
-<ul><li>Golden fidelity: Native Skia and fresh WASM Canvas2D each compared with independent Hancom Print PDF.</li>
-<li>Backend parity: unavailable; similar golden scores do not establish backend equivalence.</li>
-<li>PR regression: unavailable; no unverified PR artifacts included. Tested merge tree and actual PR head must be distinguished.</li></ul>
-<h2>Method and limitations</h2>
-<p>Raw content silhouette at 96 dpi, RGB 232 ink threshold and 2 px dilation tolerance. This is a shape-overlap aid, not semantic accuracy, typography certification or visual approval. Median, nearest-rank P10, minimum and pages below 90 are page-weighted within one immutable run and backend. Missing scores are never zero or 100.</p>
-<p>Measured/target counts show scope. Failed, skipped and unmeasured pages remain visible. Page-count mismatches are quality alerts even when all expected golden pages have scores. Exit 1 can be a completed quality alert; execution failure is separate.</p>
-<p>Only current-corpus runs appear here. Older corpus records remain on the data branch. No scores are combined across engine SHA, protocol, font or adapter identities. Empty corpus means no approved independent golden pairs are available.</p>
-<p><a href="https://github.com/postmelee/rhwp-fidelity-dashboard">Source, operation and corpus requirements</a></p>
-<footer>Only schema-validated numbers and approved metadata are published. No original documents, fonts, upstream HTML or screenshots are served here.</footer>
-<script>document.getElementById('filter').addEventListener('change',e=>{document.querySelectorAll('#history tbody tr').forEach(r=>r.hidden=!!e.target.value&&r.dataset.status!==e.target.value)})</script></html>"""
-    headers = ["Attempt time (UTC)", "Release/ref", "Engine SHA", "Backend", "Status", "Docs measured/target",
-               "Docs failed", "Docs skipped", "Pages measured/target", "Pages failed", "Pages skipped",
-               "Pages unmeasured", "Count mismatches", "Median", "P10", "Min", "Below 90", "Quality alert", "Provenance"]
-    for old, new in {"LATEST":label(latest), "COMPLETE":label(complete), "DOCS":str(len(docs)),
-                     "PAGES":str(sum(d["pages"] for d in docs)),
-                     "EMPTY":"No measurements available." if not docs else "",
-                     "HEADERS":"".join("<th>"+h+"</th>" for h in headers),
-                     "ROWS":"".join(rows) or '<tr><td colspan="19">unavailable — no runs yet</td></tr>'}.items():
-        content = content.replace(old, new)
-    from presentation import comparison_html
-    content = content.replace("<h2>Separate evidence</h2>", comparison_html(records, docs) + "<h2>Separate evidence</h2>")
-    (out/"index.html").write_text(content)
-    write_json(out/"summary.json", {"latest_attempted": latest, "last_complete": complete,
-                                  "target_documents":len(docs), "target_pages":sum(d["pages"] for d in docs)})
+    for record in records:
+        name = f'{record["run_id"]}-{record["attempt"]}.json'
+        write_json(out / "records" / name, record)
+    render_site(out, records, docs)
+    write_json(out / "summary.json", {
+        "latest_attempted": records[-1] if records else None,
+        "last_complete": next((r for r in reversed(records) if r["status"] == "complete"), None),
+        "target_documents": len(docs),
+        "target_pages": sum(d["pages"] for d in docs),
+    })
 
 def git(args, cwd, env=None, check=True):
     return subprocess.run(["git", *args], cwd=cwd, env=env, text=True, capture_output=True, check=check)

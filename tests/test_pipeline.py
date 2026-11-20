@@ -97,7 +97,7 @@ class BoundaryTests(unittest.TestCase):
             page = (root/"site/index.html").read_text()
             data = core.read_json(root/"site/summary.json")
             self.assertIn("No measurements available", page)
-            self.assertIn("overflow-x:auto", page)
+            self.assertIn("overflow-x:auto", (root/"site/dashboard.css").read_text())
             self.assertIsNone(data["last_complete"])
             self.assertEqual(data["target_documents"], 0)
     def test_adapter_accepts_complete_warning_manifest(self):
