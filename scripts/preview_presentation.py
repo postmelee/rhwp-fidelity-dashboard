@@ -79,28 +79,77 @@ def publication_text(record, evidence):
     return f'<a href="{REPO}/actions/runs/{record["run_id"]}/job/{job}">{esc(status)}</a>'
 
 
-def overview(records, docs, snapshot):
-    latest = records[-1] if records else None
-    complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
-    release = snapshot["release"]
-    observed = next((r for r in reversed(records) if r["upstream_sha"] == release["sha"]), None)
-    tag = esc(release["tag"])
-    release_status = run_link(observed) if observed else "Unmeasured · no record for this SHA"
-    latest_status = run_link(latest) if latest else "Unavailable"
-    complete_status = run_link(complete) if complete else "Unavailable"
-    no_data = "" if records else '<p>No measurements available in this ledger.</p>'
+def decision_card(title, status, description, href, link_text):
     return (
-        '<div class="cards">'
-        '<article><h3>Smoke scope</h3>'
-        f'<p><strong>{len(docs)} approved documents · {sum(d["pages"] for d in docs)} target pages</strong></p>'
-        '<p>Full corpus coverage is unavailable.</p></article>'
-        f'<article><h3>Last recorded complete:</h3><p>{complete_status}</p></article>'
-        f'<article><h3>Latest recorded attempt:</h3><p>{latest_status}</p></article>'
-        '<article><h3>Release check</h3>'
-        f'<p><a href="{UPSTREAM}/releases/tag/{tag}">{tag}</a> · {release_status}</p>'
-        f'<p>Release observed {esc(release["observed_on"])} UTC. The ledger is checked for this release SHA.</p>'
-        f'</article></div>{no_data}'
+        f'<article class="decision"><h3>{esc(title)}</h3>'
+        f'<span class="badge">{esc(status)}</span><p>{esc(description)}</p>'
+        f'<a href="{esc(href)}">{esc(link_text)}</a></article>'
     )
+
+
+def release_panel(sha, tag, attempts, docs):
+    last = attempts[-1] if attempts else None
+    complete = next((r for r in reversed(attempts) if r["status"] == "complete"), None)
+    record = complete or last
+    pairs = paired_pages(record, docs) if record else []
+    measured = sorted((r for r in pairs if r[4] is not None), key=lambda r: -abs(r[4]))
+    target = sum(d["pages"] for d in docs)
+    state = {"complete": "Smoke complete", "partial": "Partial measurement",
+             "failed": "Attempt failed", "empty": "Empty corpus"}
+    heading = state.get(record["status"], "Unavailable") if record else "Unmeasured"
+    compare = "#compare-" + record_key(record) if record else "#renderers"
+    document = "#document-" + record_key(record) if record else "#documents"
+    summary = f"{len(measured)}/{target} pages with paired golden scores."
+    if measured:
+        summary += (f" Lowest Canvas2D {number(min(r[2] for r in measured))}"
+                    f" · Native Skia {number(min(r[3] for r in measured))}.")
+    cards = [
+        decision_card("Hancom Print fidelity", heading, summary, compare, "Compare renderers"),
+        decision_card("Switch browser default to Skia?", "CanvasKit unmeasured",
+                      "Needs browser Canvas2D vs CanvasKit coverage, fallback, failures and first-page latency.",
+                      compare, "Inspect measured backends"),
+        decision_card("Switch to PageLayerTree?", "Render Diff evidence unavailable",
+                      "Needs pages drawn by both Canvas tree paths, tolerance breaches and fallback counts.",
+                      "#methods", "Method and evidence sources"),
+    ]
+    source = f'<p>Measurement evidence: {run_link(record)}</p>' if record else ""
+    if last and last != record:
+        source += f'<p>Most recent attempt: {run_link(last)}</p>'
+    body = (f'<h3 class="release-title">{esc(tag)} · {heading}</h3>'
+            f'<div class="cards decisions">{"".join(cards)}</div>{source}')
+    if measured:
+        names = {d["id"]: Path(d.get("document", {}).get("source", d["id"])).name for d in docs}
+        rows = [(names[key], page, number(w), number(n), f"{delta:+.5f}") for key,page,w,n,delta in measured[:5]]
+        body += table("Largest differences against the same Hancom page", [
+            "Document", "Page", "Canvas2D", "Native Skia", "Skia minus Canvas2D (points)",
+        ], rows)
+        body += f'<p>{sum(r[4] == 0 for r in measured)} of {len(measured)} paired pages tied. <a href="{document}">All page results</a></p>'
+    return f'<div class="release-view" id="release-{esc(sha)}">{body}</div>'
+
+
+def overview(records, docs, snapshot):
+    release = snapshot["release"]
+    groups = {release["sha"]: []}
+    tags = {release["sha"]: release["tag"]}
+    for record in reversed(records):
+        sha = record["upstream_sha"]
+        tags.setdefault(sha, record["source_ref"])
+        groups.setdefault(sha, []).append(record)
+    options = "".join(f'<option value="release-{esc(sha)}">{esc(tags[sha])} · {esc(sha[:8])}</option>'
+                      for sha in groups)
+    selector = (f'<label class="release-picker" hidden>Release or tested revision '
+                f'<select id="release-picker">{options}</select></label>')
+    latest_complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
+    latest_note = "No measurements available." if latest_complete is None else run_link(latest_complete)
+    if latest_complete and latest_complete["upstream_sha"] != release["sha"]:
+        latest_note += f' · <a href="#release-{latest_complete["upstream_sha"]}">See this release overview</a>'
+    scope = (f'<p class="scope"><strong>Smoke scope</strong> · {len(docs)} approved documents · '
+             f'{sum(d["pages"] for d in docs)} target pages</p>')
+    return (scope + selector + f'<p>Stable release observed {esc(release["observed_on"])} UTC: '
+            f'<a href="{UPSTREAM}/releases/tag/{esc(release["tag"])}">{esc(release["tag"])}</a></p>'
+            f'<p>Last recorded complete: {latest_note}</p>'
+            + "".join(release_panel(sha, tags[sha], list(reversed(group)), docs)
+                      for sha, group in groups.items()))
 
 
 def renderer_tables(record, docs):
@@ -225,6 +274,7 @@ job are marked unknown.</p>
   <li><a href="{REPO}/blob/main/docs/METHODOLOGY.md">Measurement methodology</a></li>
   <li><a href="{REPO}/blob/main/docs/CORPUS.md">Smoke corpus and source approvals</a></li>
   <li><a href="{REPO}/tree/data/records">Durable numeric ledger</a></li>
+  <li><a href="{UPSTREAM}/blob/197ce19e99438c2cba452c654ae1af504dab85ec/rhwp-studio/e2e/canvas-render-diff.test.mjs">Upstream Canvas tree comparison and pixel tolerances</a></li>
   <li><a href="summary.json">Machine-readable current snapshot</a></li>
 </ul>
 """
@@ -232,6 +282,17 @@ job are marked unknown.</p>
 
 def render_site(out, records, docs):
     snapshot = json.loads((SITE / "evidence.json").read_text())
+    if os.environ.get("REFRESH_RELEASE") == "1":
+        from datetime import datetime, timezone
+        from pipeline import stable_releases, resolve_ref
+        try:
+            releases = stable_releases()
+            if releases:
+                tag = releases[-1]["tag_name"]
+                sha, _ = resolve_ref(tag)
+                snapshot["release"] = {"sha": sha, "tag": tag, "observed_on": datetime.now(timezone.utc).date().isoformat()}
+        except (OSError, ValueError, KeyError):
+            print("Release lookup unavailable; displaying dated observation.")
     observations = {(e["run_id"], e["attempt"]): e for e in snapshot["attempts"]}
     panes = {
         "overview": overview(records, docs, snapshot),

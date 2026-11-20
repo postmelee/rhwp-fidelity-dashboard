@@ -23,10 +23,25 @@ function activate(index) {
     }
 }
 
+const releasePicker = document.getElementById("release-picker");
+const releaseViews = Array.from(document.querySelectorAll(".release-view"));
+function selectRelease(id) {
+    releasePicker.value = id;
+    for (const view of releaseViews) view.hidden = view.id !== id;
+}
+releasePicker.parentElement.hidden = false;
+selectRelease(releasePicker.value);
+releasePicker.addEventListener("change", () => {
+    history.pushState(null, "", "#" + releasePicker.value);
+    selectRelease(releasePicker.value);
+});
+
 function showHash({focus = false} = {}) {
     const target = document.getElementById(location.hash.slice(1));
     const panel = target?.closest("main > section") ?? panels[0];
     activate(panels.indexOf(panel));
+    if (target?.classList.contains("release-view")) selectRelease(target.id);
+    else if (panel === panels[0]) selectRelease(releasePicker.options[0].value);
     if (target instanceof HTMLDetailsElement) {
         if (filter && target.classList.contains("history-run") && target.hidden) {
             filter.value = "";
@@ -53,6 +68,7 @@ for (const [i, tab] of tabs.entries()) {
         event.preventDefault();
         if (location.hash !== tab.hash) history.pushState(null, "", tab.hash);
         activate(i);
+        if (i === 0) selectRelease(releasePicker.options[0].value);
     });
     tab.addEventListener("keydown", event => {
         const destination = {
