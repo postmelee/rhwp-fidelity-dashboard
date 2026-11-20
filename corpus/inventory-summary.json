@@ -1,0 +1,29 @@
+{
+  "source_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+  "source_paths": 3800,
+  "unique_blobs": 3651,
+  "by_root": {
+    "samples": {
+      "hwp": 918,
+      "hwpx": 949
+    },
+    "tests/fixtures": {
+      "hwp": 263,
+      "hwpx": 368
+    },
+    "mydocs/pr/assets": {
+      "hwp": 380,
+      "hwpx": 578
+    },
+    "pdf": {
+      "hwp": 127,
+      "hwpx": 217
+    }
+  },
+  "receipt_file": "mydocs/pr/assets/hyunmyungjanelee_20261112/mcp-print-reference/receipts.json",
+  "receipt_sha256": "d520d543931cbc4f6163761e379328d36dbe08dedb54b9cfba620d673ac8980b",
+  "receipt_pair_status": {
+    "verified": 34
+  },
+  "receipt_verified_sources": 34
+}

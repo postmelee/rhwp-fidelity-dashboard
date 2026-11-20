@@ -186,6 +186,22 @@ def release_picker(groups):
             f'<select id="release-picker">{options}</select></label>')
 
 
+def inventory_section(snapshot):
+    items = [
+        ("HWP / HWPX paths", f'{snapshot["source_paths"]:,}'),
+        ("Distinct Git blobs", f'{snapshot["unique_blobs"]:,}'),
+        ("Sources verified in audited Print receipt", str(snapshot["receipt_verified_sources"])),
+    ]
+    revision = snapshot["source_revision"]
+    totals = [(root, counts["hwp"], counts["hwpx"]) for root, counts in snapshot["by_root"].items()]
+    return (f'<h3>Corpus inventory</h3>{metric_list(items)}'
+            f'<details><summary>Inventory by directory</summary>'
+            f'{table("Source paths", ["Directory", "HWP", "HWPX"], totals, cards=True)}'
+            f'<p><a href="{UPSTREAM}/tree/{revision}">Corpus revision · {revision[:12]}</a> · '
+            f'<a href="{UPSTREAM}/blob/{revision}/{esc(snapshot["receipt_file"])}">Audited Print receipt</a></p>'
+            '</details>')
+
+
 def overview(records, docs, release, groups):
     latest_complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
     latest_note = "Unmeasured" if latest_complete is None else run_link(latest_complete)
@@ -360,7 +376,7 @@ def methods():
 """
 
 
-def render_site(out, records, docs):
+def render_site(out, records, docs, inventory):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
         from datetime import datetime, timezone
@@ -376,7 +392,7 @@ def render_site(out, records, docs):
     observations = {(e["run_id"], e["attempt"]): e for e in snapshot["attempts"]}
     groups = release_groups(records, snapshot["release"])
     panes = {
-        "overview": overview(records, docs, snapshot["release"], groups),
+        "overview": inventory_section(inventory) + overview(records, docs, snapshot["release"], groups),
         "renderers": run_views(groups, docs, "compare", renderer_tables),
         "documents": ('<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
