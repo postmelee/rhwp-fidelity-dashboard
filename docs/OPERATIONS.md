@@ -29,3 +29,11 @@ Checks workflow가 단위 테스트, actionlint, 페이지 build와 HTTP smoke�
 Native release와 fresh WASM release의 cold build가 대부분의 시간을 차지합니다. 실제 첫 정상 실행에서는 각각 약 24분과 18분이었습니다. 개별 producer 명령은 60분, 측정 job은 180분으로 제한합니다. PDF raster preflight가 먼저 실행되며 단계별 시간을 로그에 남깁니다. workflow의 녹색 상태만으로 실측 성공을 판단하지 말고 immutable JSON의 backend/document 상태를 확인하세요.
 
 [검증 이력](VERIFICATION.md) · [자동화 설계와 재시도 정책](ARCHITECTURE.md) · [문서 목록](README.md)
+
+## Print 영수증 묶음의 릴리즈 측정
+
+`corpus/receipt-cohort.json`은 엔진 커밋, 원본 인벤토리 커밋, 영수증 SHA-256과 각 원본·PDF의 바이트 및 쪽수를 고정합니다. upstream은 이 묶음을 공개 검증 입력 34종·46쪽으로 설명합니다. [검증 입력의 용도](https://github.com/edwardkim/rhwp/blob/2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0/mydocs/pr/assets/hyunmyungjanelee_20261112/README.md)
+
+Actions의 **Receipt-backed release measurement**를 main에서 수동 실행할 수 있습니다. 첫 문서 2쪽의 양쪽 측정이 성공하면 동일 runner에서 나머지 33문서를 측정합니다. 두 단계의 실제 실행물과 환경 해시는 각 단계에 기록합니다. 실패한 job을 재실행하면 새 attempt가 생깁니다. 한 attempt의 빈 쪽을 다른 attempt의 점수로 채우지 않습니다. 숫자 artifact는 14일간 보존되고, main의 수동 실행은 완료 후 **Archive release cohort**가 data 브랜치의 `cohorts/<run>-<attempt>.json`에 보존합니다. PR 실행은 생산 head와 테스트한 merge SHA를 대조한 명시적 `corpus/receipt-import.json`으로 반영합니다.
+
+사이트의 문서·페이지 탭에서 해당 실행의 양쪽 결과, 쪽수 일치, 분포와 낮은 점수를 확인합니다. 전체 경로 원장에는 원본 대신 경로의 UTF-8 SHA-256, Git blob, 루트, 형식, 검사별 이관과 실측 상태를 게시합니다. 저장소 상대 경로를 입력하면 브라우저 안에서 같은 해시를 계산합니다. 지정 영수증 집합 밖의 행은 다른 정답 PDF가 존재할 수 있습니다. 원본·PDF·PNG·개별 글꼴은 게시하지 않습니다.

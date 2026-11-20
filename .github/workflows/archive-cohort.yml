@@ -1,0 +1,42 @@
+name: Archive release cohort
+on:
+  push:
+    branches: [main]
+    paths: ['corpus/receipt-import.json']
+  workflow_run:
+    workflows: ['Receipt-backed release measurement']
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: fidelity-ledger
+  cancel-in-progress: false
+jobs:
+  archive:
+    if: github.event_name == 'push' || (github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate and append reviewed measurement
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/receipt_archive.py --request corpus/receipt-import.json
+      - name: Validate and append main measurement
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/receipt_archive.py
+  publish:
+    needs: archive
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

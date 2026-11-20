@@ -26,6 +26,15 @@ jobs:
         with:
           ref: main
           persist-credentials: false
+      - name: Prepare pinned per-path corpus inventory
+        run: |
+          repo="$RUNNER_TEMP/rhwp-corpus"
+          rev="$(python3 -c 'import json; print(json.load(open("corpus/inventory-summary.json"))["source_revision"])')"
+          git init -q "$repo"
+          git -C "$repo" remote add origin https://github.com/edwardkim/rhwp.git
+          git -C "$repo" -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$rev"
+          python3 scripts/corpus_inventory.py "$repo" --check --rows "$RUNNER_TEMP/corpus-rows.json"
+          echo "DASHBOARD_INVENTORY_ROWS=$RUNNER_TEMP/corpus-rows.json" >> "$GITHUB_ENV"
       - name: Build from validated durable ledger
         env:
           REFRESH_RELEASE: '1'

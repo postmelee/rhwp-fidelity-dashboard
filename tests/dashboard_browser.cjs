@@ -133,6 +133,15 @@ async function test(browser) {
     await page.setViewportSize({width: 320, height: 720});
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
+    await page.goto(base + "corpus-index.html");
+    await page.getByText("1–50 of 3800", {exact: true}).waitFor();
+    await page.getByRole("button", {name: "Next", exact: true}).click();
+    await page.getByText("51–100 of 3800", {exact: true}).waitFor();
+    await page.locator("#query").fill("samples/issue8573/empty-host-split-table.hwp");
+    await page.getByText("1–1 of 1", {exact: true}).waitFor();
+    assert.equal(await page.locator("tbody tr").count(), 1);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
     assert.ok(await noScript.locator("#overview").isVisible());
