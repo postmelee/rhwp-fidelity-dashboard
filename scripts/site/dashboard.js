@@ -116,6 +116,7 @@ if (filter) {
 showHash();
 
 for (const button of document.querySelectorAll(".sort")) {
+    button.setAttribute("aria-label", button.textContent);
     button.hidden = false;
     button.nextElementSibling.hidden = true;
     button.addEventListener("click", () => {
