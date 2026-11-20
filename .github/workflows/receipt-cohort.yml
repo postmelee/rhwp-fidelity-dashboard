@@ -4,7 +4,6 @@ on:
     paths:
       - 'corpus/receipt-cohort.json'
       - 'scripts/receipt_cohort.py'
-      - '.github/workflows/receipt-cohort.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: receipt-cohort-numeric
+          name: receipt-cohort-numeric-${{ github.run_attempt }}
           path: work/numeric/*.json
           if-no-files-found: warn
           retention-days: 14

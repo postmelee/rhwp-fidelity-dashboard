@@ -22,6 +22,16 @@ jobs:
           python3 -m http.server 8000 --directory site > /tmp/fidelity-http.log 2>&1 &
           python3 scripts/http_smoke.py
 
+      - name: Prepare pinned per-path corpus inventory
+        if: github.event_name == 'pull_request'
+        run: |
+          repo="$RUNNER_TEMP/rhwp-corpus"
+          rev="$(python3 -c 'import json; print(json.load(open("corpus/inventory-summary.json"))["source_revision"])')"
+          git init -q "$repo"
+          git -C "$repo" remote add origin https://github.com/edwardkim/rhwp.git
+          git -C "$repo" -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$rev"
+          python3 scripts/corpus_inventory.py "$repo" --check --rows "$RUNNER_TEMP/corpus-rows.json"
+          echo "DASHBOARD_INVENTORY_ROWS=$RUNNER_TEMP/corpus-rows.json" >> "$GITHUB_ENV"
       - name: Build preview from the pinned public numeric ledger
         if: github.event_name == 'pull_request'
         run: |

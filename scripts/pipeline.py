@@ -179,9 +179,12 @@ def build(folder, out, corpus):
         name = f'{record["run_id"]}-{record["attempt"]}.json'
         write_json(out / "records" / name, record)
     inventory = read_json(ROOT / "corpus/inventory-summary.json")
-    render_site(out, records, docs, inventory)
+    from cohort_site import build as build_cohort_site
+    cohort_runs, cohort_panel = build_cohort_site(Path(folder).parent / "cohorts", out, inventory)
+    render_site(out, records, docs, inventory, cohort_panel)
     write_json(out / "summary.json", {
         "corpus_inventory": inventory,
+        "receipt_cohort_runs": cohort_runs,
         "latest_attempted": records[-1] if records else None,
         "last_complete": next((r for r in reversed(records) if r["status"] == "complete"), None),
         "target_documents": len(docs),
@@ -212,7 +215,7 @@ def ledger_repository(destination, write=False):
         # Only read JSON blobs; never checkout branch-supplied code, hooks or symlinks.
         files = git(["ls-tree", "-r", "--name-only", "FETCH_HEAD"], destination, env).stdout.splitlines()
         for name in files:
-            if not re.fullmatch(r"records/[0-9]+-[0-9]+\.json", name):
+            if not re.fullmatch(r"(?:records|cohorts)/[0-9]+-[0-9]+\.json", name):
                 raise ValueError("unexpected ledger path")
             mode = git(["ls-tree", "FETCH_HEAD", name], destination, env).stdout.split()[0]
             if mode != "100644":

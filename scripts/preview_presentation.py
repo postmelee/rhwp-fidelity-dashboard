@@ -140,7 +140,7 @@ def release_panel(sha, tag, attempts, docs):
                    f'<p>Matching / known documents · {" · ".join(counts)}</p>')
     if last and last != record:
         source += f'<p>Most recent attempt: {run_link(last)}</p>'
-    body = (f'<h3 class="release-title">{esc(tag)} · {heading}</h3>'
+    body = (f'<h3 class="release-title">{esc(tag)} · {heading}{" (smoke scope)" if not record else ""}</h3>'
             f'<div class="cards decisions">{"".join(cards)}</div>{source}')
     if measured:
         body += '<h4>Lowest page silhouette vs Hancom (%)</h4>'
@@ -403,7 +403,7 @@ def historical_pr_pages(out):
 """, encoding="utf-8")
 
 
-def render_site(out, records, docs, inventory):
+def render_site(out, records, docs, inventory, cohort_panel=""):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
         from datetime import datetime, timezone
@@ -420,12 +420,12 @@ def render_site(out, records, docs, inventory):
     groups = release_groups(records, snapshot["release"])
     historical_pr_pages(out)
     panes = {
-        "overview": inventory_section(inventory) + overview(records, docs, snapshot["release"], groups),
-        "renderers": (run_views(groups, docs, "compare", renderer_tables) +
+        "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
+        "renderers": (cohort_panel + run_views(groups, docs, "compare", renderer_tables) +
                       '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
-        "documents": ('<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
+        "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
-        "history": history_view(records, observations),
+        "history": cohort_panel + history_view(records, observations),
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
             + (run_link(next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1]))
@@ -444,7 +444,7 @@ def render_site(out, records, docs, inventory):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>rhwp fidelity dashboard</title>
 <link rel="stylesheet" href="dashboard.css">
-<script src="dashboard.js" defer></script>
+<script src="dashboard.js" defer></script><script src="receipt-status.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#overview">Skip to dashboard content</a>

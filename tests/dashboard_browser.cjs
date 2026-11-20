@@ -17,7 +17,12 @@ async function test(browser) {
     const page = await browser.newPage({viewport: {width: 360, height: 800}});
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
+    await page.route("https://api.github.com/**/receipt-cohort.yml/runs?*", route => route.fulfill({
+        json: {workflow_runs: [{id: 123, run_attempt: 2, status: "in_progress", conclusion: null,
+            head_repository: {full_name: "postmelee/rhwp-fidelity-dashboard"}}]}
+    }));
     await page.goto(base);
+    await page.locator("#receipt-run-state").getByRole("link", {name: "Measurement in progress · 123"}).waitFor();
     await expectTab(page, "overview");
     assert.match(await page.locator("#overview").innerText(), /4 approved documents · 4 target pages/);
     assert.match(await page.locator("#overview").innerText(), /v0\.9\.1 · Unmeasured/);
@@ -131,6 +136,15 @@ async function test(browser) {
     assert.deepEqual(await pageRows.filter({has: page.getByRole("cell", {name: "18", exact: true})}).locator("td").allTextContents(),
         ["18", "96.35", "100.00", "-3.65"]);
     await page.setViewportSize({width: 320, height: 720});
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+    await page.goto(base + "corpus-index.html");
+    await page.getByText("1–50 of 3800", {exact: true}).waitFor();
+    await page.getByRole("button", {name: "Next", exact: true}).click();
+    await page.getByText("51–100 of 3800", {exact: true}).waitFor();
+    await page.locator("#query").fill("samples/issue8573/empty-host-split-table.hwp");
+    await page.getByText("1–1 of 1", {exact: true}).waitFor();
+    assert.equal(await page.locator("tbody tr").count(), 1);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
     const noScript = await browser.newPage({javaScriptEnabled: false});
