@@ -38,7 +38,8 @@ table { border-collapse: collapse; text-align: left; width: 100%; font-size: .9r
 caption { text-align: left; padding: .4rem 0; font-weight: 600; }
 th, td { border: 1px solid var(--line); padding: .45rem .6rem; }
 th { background: var(--panel); vertical-align: top; }
-td { white-space: nowrap; }
+td, th { overflow-wrap: anywhere; }
+td { font-variant-numeric: tabular-nums; }
 .sort { color: var(--accent); text-decoration: underline; border: 0; background: transparent; cursor: pointer; padding: .2rem 0; min-height: 2rem; text-align: left; }
 th[aria-sort="ascending"] button::after { content: " ↑"; }
 th[aria-sort="descending"] button::after { content: " ↓"; }
@@ -58,3 +59,30 @@ footer { border-top: 1px solid var(--line); margin-top: 1.8rem; padding-top: .75
 .decision a { margin-top: auto; }
 .badge { display: inline-block; font-size: .8rem; font-weight: 600; border: 1px solid var(--line); background: var(--panel); border-radius: 1rem; padding: .12rem .55rem; }
 .scope { color: var(--muted); }
+
+header { padding-bottom: 1rem; }
+.release-picker select { max-width: 100%; }
+.score-line { display: grid; grid-template-columns: minmax(9rem, 12rem) minmax(2rem, 16rem) 6rem; align-items: center; gap: .6rem; margin-block: .3rem; font-size: .9rem; }
+.score-line meter { width: 100%; accent-color: var(--accent); }
+.score-line strong { font-variant-numeric: tabular-nums; text-align: right; }
+.gap-track { position: relative; display: block; width: 100%; height: .35rem; background: var(--panel); }
+.gap-track::after { content: ""; position: absolute; left: 50%; width: 1px; inset-block: -.1rem; background: var(--muted); }
+.gap-track i { position: absolute; height: 100%; background: var(--accent); }
+.positive i { left: 50%; }
+.negative i { right: 50%; }
+.metric-grid { table-layout: fixed; }
+.metric-grid td ~ td { text-align: right; }
+.metric-grid th ~ th { text-align: right; }
+@media (max-width: 42rem) {
+  body { padding-inline: .85rem; }
+  .page-grid, .page-grid tbody, .page-grid caption, .page-grid thead { display: block; }
+  .page-grid thead tr { display: flex; flex-wrap: wrap; gap: .2rem .45rem; }
+  .page-grid thead th { border: 0; background: transparent; padding: 0; font-size: .8rem; }
+  .page-grid tbody tr { display: block; border: 1px solid var(--line); border-radius: .4rem; padding: .45rem .65rem; margin-block: .5rem; }
+  .page-grid td { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); text-align: right; gap: .1rem .5rem; align-items: baseline; border: 0; padding: .2rem 0; }
+  .page-grid td::before { content: attr(data-label); text-align: left; color: var(--muted); }
+  .page-grid td .gap-track { grid-column: 2; }
+  .metric-grid th, .metric-grid td { padding: .4rem; }
+  .score-line { grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .1rem .5rem; }
+  .score-line span { grid-column: 1 / -1; }
+}

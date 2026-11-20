@@ -10,6 +10,7 @@ import core
 import pipeline
 import adapter
 import presentation
+import preview_presentation as site
 import wait_pages_artifact
 
 class BoundaryTests(unittest.TestCase):
@@ -30,6 +31,33 @@ class BoundaryTests(unittest.TestCase):
         record = {"measurement":{"backends":{"native":copy.deepcopy(self.backend),"wasm":copy.deepcopy(self.backend)}}}
         record["measurement"]["backends"]["wasm"]["documents"][0]["scores"].pop()
         self.assertEqual(presentation.paired_pages(record,self.docs)[1][2:], (None,None,None))
+    def test_release_menu_is_numeric_and_keeps_retagged_revisions(self):
+        release = {"sha": "current", "tag": "v0.9.1"}
+        records = [
+            {"upstream_sha": sha, "source_ref": tag, "source_kind": kind, "resolved_at": str(i)}
+            for i, (sha, tag, kind) in enumerate([
+                ("older", "v0.7.10", "stable-release"), ("old", "v0.7.9", "stable-release"),
+                ("retag", "v0.9.1", "stable-release"), ("manual", "manual", "manual-sha")
+            ])
+        ]
+        menu = site.release_groups(records, release)
+        self.assertEqual([row[0] for row in menu], ["current", "retag", "older", "old", "manual"])
+        self.assertTrue(menu[-1][1].startswith("Manual"))
+
+    def test_overview_threshold_only_counts_comparable_pages(self):
+        record = {"source_ref": "v1", "upstream_sha": "a"*40, "resolved_at": "today",
+                  "run_id": 1, "attempt": 1, "status": "complete",
+                  "measurement": {"backends": {key: copy.deepcopy(self.backend) for key in ("native", "wasm")}}}
+        record["measurement"]["backends"]["native"]["documents"][0]["scores"][1]["raw"] = 90
+        page = site.release_panel("a"*40, "v1", [record], self.docs)
+        self.assertIn("90% raw silhouette on 1/2 compared pages", page)
+        record["measurement"]["backends"]["native"]["documents"][0]["rendered_pages"] = 3
+        page = site.release_panel("a"*40, "v1", [record], self.docs)
+        self.assertNotIn("90% raw silhouette on", page)
+        self.assertIn("0/2 pages with paired golden scores", page)
+        self.assertIn("Native Skia 0/1", page)
+        self.assertIn("89.1", site.document_table(record, self.docs))
+
     def test_quality_exit_one_is_complete(self):
         self.assertEqual(core.validate_backend(self.backend, self.docs)["status"], "complete")
         self.assertEqual(core.coverage(self.backend, self.docs)["below90"], 1)
