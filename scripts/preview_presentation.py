@@ -337,6 +337,11 @@ def methods():
     return f"""
 {contract}
 <p>Page build revision: {revision_label}</p>
+<h3>PR Visual Sweep</h3>
+<ul>
+  <li><a href="{UPSTREAM}/pull/9024">rhwp #9024</a> · HWPX · Candidate · 763 pages per backend</li>
+  <li><a href="https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/original/head/hwpx-native.tsv">Native TSV</a> · <a href="https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/original/head/hwpx-wasm.tsv">WASM TSV</a> · <a href="https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/README.md">Measurement record</a></li>
+</ul>
 <h3>Upstream evidence</h3>
 <ul>
   <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/.github/workflows/oracle-public-advisory.yml">Oracle Public Advisory</a> · Page counts · Match / mismatch / error / unpaired</li>
