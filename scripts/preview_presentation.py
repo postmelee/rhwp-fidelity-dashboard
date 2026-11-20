@@ -40,7 +40,7 @@ def table(title, headers, rows, *, cards=False):
         for row in rows
     )
     if not body:
-        body = f'<tr><td colspan="{len(headers)}">No rows available.</td></tr>'
+        body = f'<tr><td colspan="{len(headers)}">No rows</td></tr>'
     return (
         f'<div class="scroll" tabindex="0" role="region" aria-label="{esc(title)}">'
         f'<table class="{"page-grid" if cards else "metric-grid"}"><caption>{esc(title)}</caption><thead><tr>{head}</tr></thead>'
@@ -67,7 +67,7 @@ def status_text(record, evidence):
     job = evidence.get("checkout_contract_job")
     if job:
         return (
-            'Checkout contract failed · no scores. '
+            'Checkout contract failed · Scores unavailable · '
             f'<a href="{REPO}/actions/runs/{record["run_id"]}/job/{job}">Measurement log</a>'
         )
     return {
@@ -89,10 +89,15 @@ def publication_text(record, evidence):
     return f'<a href="{REPO}/actions/runs/{record["run_id"]}/job/{job}">{esc(status)}</a>'
 
 
-def decision_card(title, status, description, href, link_text):
+def metric_list(items):
+    rows = "".join(f"<dt>{esc(key)}</dt><dd>{esc(value)}</dd>" for key, value in items)
+    return f'<dl class="metrics">{rows}</dl>'
+
+
+def decision_card(title, status, items, href, link_text):
     return (
         f'<article class="decision"><h3>{esc(title)}</h3>'
-        f'<span class="badge">{esc(status)}</span><p>{esc(description)}</p>'
+        f'<span class="badge">{esc(status)}</span>{metric_list(items)}'
         f'<a href="{esc(href)}">{esc(link_text)}</a></article>'
     )
 
@@ -109,19 +114,21 @@ def release_panel(sha, tag, attempts, docs):
     heading = state.get(record["status"], "Unavailable") if record else "Unmeasured"
     compare = "#compare-" + record_key(record) if record else "#renderers"
     document = "#document-" + record_key(record) if record else "#documents"
-    summary = f"{len(measured)}/{target} pages with paired golden scores."
-    if measured:
-        passing = sum(min(r[2], r[3]) >= 90 for r in measured)
-        summary += f" Both renderers reached 90% raw silhouette on {passing}/{len(measured)} compared pages."
-
+    passing = sum(min(r[2], r[3]) >= 90 for r in measured)
+    comparison = [
+        ("Paired pages / target", f"{len(measured)}/{target}"),
+        ("Both ≥90% / paired pages", f"{passing}/{len(measured)}" if measured else "Unmeasured"),
+    ]
+    wasm_pages = sum(len(doc["scores"]) for doc in record["measurement"]["backends"]["wasm"]["documents"]) if record else 0
     cards = [
-        decision_card("Hancom Print fidelity", heading, summary, compare, "Compare renderers"),
-        decision_card("Browser rendering · Canvas2D / CanvasKit", "CanvasKit unmeasured",
-                      "The smoke run measures browser Canvas2D. Its Skia score comes from the native CLI.",
-                      compare, "Inspect measured backends"),
-        decision_card("Canvas tree output parity", "Render Diff evidence unavailable",
-                      "PageRenderTree and PageLayerTree draw the same page. Render Diff compares their pixels under the same browser configuration.",
-                      "#methods", "Method and evidence sources"),
+        decision_card("Hancom Print fidelity", heading, comparison, compare, "Renderer scores"),
+        decision_card("Browser renderers", "CanvasKit unmeasured", [
+            ("WASM Canvas2D pages", f"{wasm_pages}/{target}"),
+            ("Skia fidelity protocol", "Native CLI"),
+        ], compare, "Backend coverage"),
+        decision_card("Canvas tree output parity", "Render Diff unlinked", [
+            ("Tree A", "PageRenderTree"), ("Tree B", "PageLayerTree"),
+        ], "#methods", "Render Diff source"),
     ]
     source = f'<p>Measurement evidence: {run_link(record)}</p>' if record else ""
     if record:
@@ -129,16 +136,17 @@ def release_panel(sha, tag, attempts, docs):
         for key, name in (("wasm", "Canvas2D"), ("native", "Native Skia")):
             known, equal = page_count_evidence(record["measurement"]["backends"][key])
             counts.append(f"{name} {equal}/{known}" if known else f"{name} unavailable")
-        source += (f'<p><strong>Documents matching Hancom page count</strong> · {" · ".join(counts)} '
-                   '(among documents with both counts known).</p>')
+        source += ('<h4>Hancom page-count agreement</h4>'
+                   f'<p>Matching / known documents · {" · ".join(counts)}</p>')
     if last and last != record:
         source += f'<p>Most recent attempt: {run_link(last)}</p>'
     body = (f'<h3 class="release-title">{esc(tag)} · {heading}</h3>'
             f'<div class="cards decisions">{"".join(cards)}</div>{source}')
     if measured:
+        body += '<h4>Lowest page silhouette vs Hancom (%)</h4>'
         for name, index in (("Canvas2D", 2), ("Native Skia", 3)):
             value = min(row[index] for row in measured)
-            body += (f'<div class="score-line"><span>{name} · lowest paired page</span>'
+            body += (f'<div class="score-line"><span>{name}</span>'
                      f'<meter aria-label="{name} lowest paired page" min="0" max="100" value="{value}"></meter>'
                      f'<strong>{number(value)}%</strong></div>')
         names = {d["id"]: Path(d.get("document", {}).get("source", d["id"])).name for d in docs}
@@ -146,7 +154,7 @@ def release_panel(sha, tag, attempts, docs):
         body += table("Largest differences against the same Hancom page", [
             "Document", "Page", "Canvas2D", "Native Skia", "Skia minus Canvas2D (points)",
         ], rows, cards=True)
-        body += f'<p>{sum(r[4] == 0 for r in measured)} of {len(measured)} paired pages tied. <a href="{document}">All page results</a></p>'
+        body += f'<p>Equal scores / paired pages · {sum(r[4] == 0 for r in measured)}/{len(measured)} · <a href="{document}">All page results</a></p>'
     return f'<div class="release-view" id="release-{esc(sha)}">{body}</div>'
 
 
@@ -180,9 +188,9 @@ def release_picker(groups):
 
 def overview(records, docs, release, groups):
     latest_complete = next((r for r in reversed(records) if r["status"] == "complete"), None)
-    latest_note = "No measurements available." if latest_complete is None else run_link(latest_complete)
+    latest_note = "Unmeasured" if latest_complete is None else run_link(latest_complete)
     if latest_complete and latest_complete["upstream_sha"] != release["sha"]:
-        latest_note += f' · <a href="#release-{latest_complete["upstream_sha"]}">See this release overview</a>'
+        latest_note += f' · <a href="#release-{latest_complete["upstream_sha"]}">Release overview</a>'
     scope = (f'<p class="scope"><strong>Smoke scope</strong> · {len(docs)} approved documents · '
              f'{sum(d["pages"] for d in docs)} target pages</p>')
     return (scope + f'<p>Stable release observed {esc(release["observed_on"])} UTC: '
@@ -252,7 +260,7 @@ def run_views(groups, docs, prefix, render):
     parts = []
     for sha, tag, attempts in groups:
         if not attempts:
-            parts.append(f'<p data-release="{sha}" data-preferred="true">{esc(tag)} · No measurements available.</p>')
+            parts.append(f'<p data-release="{sha}" data-preferred="true">{esc(tag)} · Unmeasured</p>')
             continue
         preferred = next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1])
         for record in reversed(attempts):
@@ -270,7 +278,7 @@ def run_views(groups, docs, prefix, render):
 
 def history_view(records, observations):
     if not records:
-        return '<p>No attempts recorded.</p>'
+        return '<p>Recorded attempts · 0</p>'
     parts = [
         '<label for="filter" hidden>Measurement status</label> '
         '<select id="filter" hidden><option value="">All</option>'
@@ -313,22 +321,31 @@ def methods():
         revision_label = f'<a href="{REPO}/commit/{revision}"><code>{revision}</code></a>'
     else:
         revision_label = "Unavailable (local build)"
+    contract = metric_list([
+        ("Reference", "Independent Hancom Print PDF"),
+        ("Score", "Raw silhouette overlap · %"),
+        ("Raster / ink / dilation", "96 dpi · min(R,G,B) < 232 · 2 px"),
+        ("P10", "Nearest-rank 10th percentile"),
+        ("Page pair", "Same attempt · complete documents · matching counts"),
+        ("Score gap", "Native Skia − WASM Canvas2D · percentage points"),
+        ("Runtime / fonts", "Native CLI / browser WASM · backend-specific font selection"),
+        ("Quality alerts", "Below 90% · page-count mismatch"),
+        ("History", "Active smoke corpus · original measurement timestamps"),
+        ("Publication evidence", "Audited job per attempt · unknown otherwise"),
+        ("Direct backend parity / PR regression", "Unmeasured"),
+    ])
     return f"""
-<p>Independent Hancom Print PDF is the golden for fresh WASM Canvas2D and Native Skia.
-Raw silhouette measures shape overlap at 96 dpi, using an RGB 232 ink threshold and 2 px dilation.
-P10 is nearest rank. A complete run can carry quality alerts, including page-count mismatches.</p>
-<p>Native and browser runtime/font behavior can differ under the same declared font contract.
-The score difference compares each backend to Hancom. Direct backend parity, CanvasKit,
-tree-path parity and PR regression are currently unavailable.</p>
-<p>Stored scores and fingerprints belong to the original immutable measurement attempt.
-Redeployment displays historical results. Run history lists only the active smoke corpus.
-Publication labels reflect audited jobs for specific attempts. Later attempts without an audited
-job are marked unknown.</p>
+{contract}
 <p>Page build revision: {revision_label}</p>
+<h3>Upstream evidence</h3>
 <ul>
-  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/.github/workflows/oracle-public-advisory.yml">Oracle Public Advisory</a> compares document page counts. Its completed verdict and match, mismatch, error and unpaired counts are needed for coverage beyond this smoke corpus.</li>
-  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/mydocs/manual/verification/visual_verification_governance.md">Upstream visual review policy</a> flags a drop greater than 2 percentage points from a comparable base on any page and backend. Matched base/head runs and human review evidence are unavailable here.</li>
-  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/tools/fidelity_compare/README.md">Document structure checks</a> identify possible missing or misplaced text for review. These diagnostics are currently unmeasured here.</li>
+  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/.github/workflows/oracle-public-advisory.yml">Oracle Public Advisory</a> · Page counts · Match / mismatch / error / unpaired</li>
+  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/mydocs/manual/verification/visual_verification_governance.md">Visual review policy</a> · Comparable base/head drop &gt;2 pp · Human review</li>
+  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/mydocs/pr/assets/visual-protected-baseline/final.tsv">Protected page floors (TSV)</a> · Historical thresholds · Per page / backend · Two decimals</li>
+  <li><a href="{UPSTREAM}/blob/{EVIDENCE_REV}/tools/fidelity_compare/README.md">Document structure checks</a> · Missing / misplaced text candidates</li>
+</ul>
+<h3>Sources</h3>
+<ul>
   <li><a href="{REPO}/blob/main/docs/METHODOLOGY.md">Measurement methodology</a></li>
   <li><a href="{REPO}/blob/main/docs/CORPUS.md">Smoke corpus and source approvals</a></li>
   <li><a href="{REPO}/tree/data/records">Durable numeric ledger</a></li>
@@ -355,17 +372,9 @@ def render_site(out, records, docs):
     groups = release_groups(records, snapshot["release"])
     panes = {
         "overview": overview(records, docs, snapshot["release"], groups),
-        "renderers": (
-            '<p>Canvas2D and Skia against the same Hancom golden. A matched row requires '
-            'both outputs to be complete, from the same attempt, and to agree with the golden page count. '
-            'Page-count equality uses documents with known counts. Score summaries use measured pages.</p>'
-            + run_views(groups, docs, "compare", renderer_tables)
-        ),
-        "documents": (
-            '<p>Each attempt lists the approved smoke pages and any available scores by backend. '
-            'Rows start with the largest absolute gap. The gap uses percentage points on a −100 to +100 scale.</p>'
-            + run_views(groups, docs, "document", document_table)
-        ),
+        "renderers": run_views(groups, docs, "compare", renderer_tables),
+        "documents": ('<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
+                      + run_views(groups, docs, "document", document_table)),
         "history": history_view(records, observations),
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
@@ -392,7 +401,7 @@ def render_site(out, records, docs):
 <header><h1>rhwp fidelity dashboard</h1><p>Rendering coverage and fidelity against Hancom Print PDF</p>{release_picker(groups)}</header>
 <nav aria-label="Dashboard views">{nav}</nav>
 <main id="content">{sections}</main>
-<footer>Public output contains numeric results and approved metadata.</footer>
+<footer>Public data · Numeric results &amp; approved metadata</footer>
 </body>
 </html>
 """, encoding="utf-8")

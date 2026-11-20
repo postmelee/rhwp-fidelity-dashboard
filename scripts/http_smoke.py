@@ -13,9 +13,9 @@ for attempt in range(30):
             assert 'setAttribute("role", "tablist")' in r.read().decode()
         for panel in ("overview", "renderers", "documents", "history", "methods"):
             assert f'<section id="{panel}"' in page
-        assert "Canvas2D and Skia against the same Hancom golden" in page
+        assert "Independent Hancom Print PDF" in page
         assert "Last recorded complete:" in page
-        assert "Redeployment displays historical results" in page
+        assert "original measurement timestamps" in page
         with urllib.request.urlopen("http://127.0.0.1:8000/summary.json", timeout=2) as r:
             data = json.load(r)
         assert type(data["target_documents"]) is int and data["target_documents"] >= 0

@@ -86,3 +86,11 @@ header { padding-bottom: 1rem; }
   .score-line { grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .1rem .5rem; }
   .score-line span { grid-column: 1 / -1; }
 }
+
+.metrics { grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .8rem; margin-block: .3rem 1rem; }
+.metrics dd { text-align: right; }
+.decision .metrics { width: 100%; }
+#methods .metrics { grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr); max-width: 56rem; }
+#methods .metrics dd { text-align: left; }
+.release-view h4 { margin: 1.1rem 0 .25rem; }
+.release-view h4 + p { margin-top: 0; }
