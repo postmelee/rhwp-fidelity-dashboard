@@ -1,0 +1,121 @@
+{
+  "release": {
+    "tag": "v0.9.1",
+    "sha": "981ce66b4183b13c1a3b5907e04a8969c8c42034",
+    "observed_on": "2026-11-20"
+  },
+  "attempts": [
+    {
+      "run_id": 43743368459,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132914952141,
+      "pages_result": "failure"
+    },
+    {
+      "run_id": 43747020016,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132918050103,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 43748870086,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132932186983,
+      "pages_result": "failure"
+    },
+    {
+      "run_id": 43750825767,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132933877205,
+      "pages_result": "failure"
+    },
+    {
+      "run_id": 43753904763,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132946277758,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 43756652815,
+      "attempt": 1,
+      "checkout_contract_job": null,
+      "pages_job": 132960951322,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 43771597998,
+      "attempt": 1,
+      "checkout_contract_job": 132988562161,
+      "pages_job": 132988937319,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 43817690230,
+      "attempt": 1,
+      "checkout_contract_job": 133133494499,
+      "pages_job": 133134180215,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 43966998953,
+      "attempt": 1,
+      "checkout_contract_job": 133649219841,
+      "pages_job": 133650339282,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44042738182,
+      "attempt": 1,
+      "checkout_contract_job": 133901150487,
+      "pages_job": 133901874187,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44174873806,
+      "attempt": 1,
+      "checkout_contract_job": 134363630793,
+      "pages_job": 134365126819,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44259743807,
+      "attempt": 1,
+      "checkout_contract_job": 134650058929,
+      "pages_job": 134651176941,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44392614648,
+      "attempt": 1,
+      "checkout_contract_job": 135114284619,
+      "pages_job": 135117676069,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44479992530,
+      "attempt": 1,
+      "checkout_contract_job": 135409801369,
+      "pages_job": 135410595497,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44611079921,
+      "attempt": 1,
+      "checkout_contract_job": 135867809511,
+      "pages_job": 135868699273,
+      "pages_result": "success"
+    },
+    {
+      "run_id": 44694231379,
+      "attempt": 1,
+      "checkout_contract_job": 136147134088,
+      "pages_job": 136147672220,
+      "pages_result": "failure"
+    }
+  ]
+}
