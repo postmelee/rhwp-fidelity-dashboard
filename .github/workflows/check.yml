@@ -28,7 +28,7 @@ jobs:
           git init "$RUNNER_TEMP/preview-ledger"
           git -C "$RUNNER_TEMP/preview-ledger" fetch --depth=1 https://github.com/postmelee/rhwp-fidelity-dashboard.git 17e6e4463c950c988c93b3ddb1afa09d8e556634
           git -C "$RUNNER_TEMP/preview-ledger" checkout FETCH_HEAD -- records
-          python3 scripts/pipeline.py build --ledger "$RUNNER_TEMP/preview-ledger" --out preview
+          python3 scripts/build_preview.py --ledger "$RUNNER_TEMP/preview-ledger" --out preview
       - name: Browser smoke on preview
         if: github.event_name == 'pull_request'
         run: |
