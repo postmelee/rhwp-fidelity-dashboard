@@ -2,7 +2,7 @@
 import html
 from pathlib import Path
 
-from core import BACKENDS, coverage, read_json, write_json
+from core import BACKENDS, canonical, coverage, digest, read_json, stats, write_json
 from receipt_archive import validate_archive
 from receipt_cohort import contract
 
@@ -45,6 +45,32 @@ def page(title, body, script=""):
 <a href="index.html#documents">Documents &amp; pages</a><h1>{esc(title)}</h1>{body}</main></body></html>"""
 
 
+def family_table(record, config, details):
+    from preview_presentation import table
+    if record["cohort_sha256"] != digest(canonical(config)):
+        return ""
+    families = {
+        "issue8573": "Table and picture anchors (#8573)",
+        "issue8664": "Zero-size paragraph (#8664)",
+        "issue8665": "Title pagination (#8665)",
+        "issue8678": "Chart value axes (#8678)",
+        "issue8680": "Wingdings symbols (#8680)",
+        "issue8690": "Lines in split table cells (#8690)",
+    }
+    members = {d["id"]: families.get(Path(d["input"]).parent.name, "Unclassified") for d in config["documents"]}
+    grouped = {}
+    for row in details:
+        grouped.setdefault(members[row["document"]], []).append(row)
+    rows = []
+    for name, pages in sorted(grouped.items()):
+        paired = [r for r in pages if r["delta"] is not None]
+        values = [stats([r[b] for r in paired])["median"] for b in BACKENDS]
+        rows.append([name, len({r["document"] for r in pages}), f"{len(paired)}/{len(pages)}",
+                     *[f"{v:.5f}" if v is not None else "Unmeasured" for v in values]])
+    return table("Upstream fixture families · median on paired pages", ["Case family", "Documents",
+                 "Paired / target pages", "Native Skia (%)", "WASM Canvas2D (%)"], rows, cards=True)
+
+
 def build(folder, out, inventory):
     config, docs = contract()
     archive = []
@@ -81,10 +107,12 @@ def build(folder, out, inventory):
                 f'<p><a href="{name}">Numeric record and producer hashes</a> · '
                 f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{record["run_id"]}/attempts/{record["attempt"]}">Measurement run</a> · '
                 f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a></p>'
-                '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>'
+                '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
+                stats + family_table(record, config, summary["pages"]) +
                 '<label>Find a document <input type="search" id="query"></label> '
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
-                '<p id="count" aria-live="polite"></p>' + stats + caption)
+                '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
+                '<option value="page">Document and page</option></select></label><p id="count" aria-live="polite"></p>' + caption)
         (out / ("cohort-" + run_key + ".html")).write_text(page("Release measurement · " + tag, body,
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
