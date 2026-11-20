@@ -117,6 +117,7 @@ def build(folder, out, inventory):
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
     (out / "cohort.js").write_bytes((Path(__file__).with_name("site") / "cohort.js").read_bytes())
+    (out / "receipt-status.js").write_bytes((Path(__file__).with_name("site") / "receipt-status.js").read_bytes())
     write_json(out / "cohort-runs.json", archive)
     overview = ('<h3>Receipt-backed release measurements</h3>'
                 f'<p>Target · {esc(config["tag"])} · {len(docs)} documents · {sum(d["pages"] for d in docs)} reference pages</p>')

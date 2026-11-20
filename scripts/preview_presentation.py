@@ -140,7 +140,7 @@ def release_panel(sha, tag, attempts, docs):
                    f'<p>Matching / known documents · {" · ".join(counts)}</p>')
     if last and last != record:
         source += f'<p>Most recent attempt: {run_link(last)}</p>'
-    body = (f'<h3 class="release-title">{esc(tag)} · {heading}</h3>'
+    body = (f'<h3 class="release-title">{esc(tag)} · Smoke · {heading}</h3>'
             f'<div class="cards decisions">{"".join(cards)}</div>{source}')
     if measured:
         body += '<h4>Lowest page silhouette vs Hancom (%)</h4>'
@@ -420,7 +420,7 @@ def render_site(out, records, docs, inventory, cohort_panel=""):
     groups = release_groups(records, snapshot["release"])
     historical_pr_pages(out)
     panes = {
-        "overview": inventory_section(inventory) + cohort_panel + overview(records, docs, snapshot["release"], groups),
+        "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
         "renderers": (cohort_panel + run_views(groups, docs, "compare", renderer_tables) +
                       '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
@@ -444,7 +444,7 @@ def render_site(out, records, docs, inventory, cohort_panel=""):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>rhwp fidelity dashboard</title>
 <link rel="stylesheet" href="dashboard.css">
-<script src="dashboard.js" defer></script>
+<script src="dashboard.js" defer></script><script src="receipt-status.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#overview">Skip to dashboard content</a>

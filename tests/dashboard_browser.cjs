@@ -17,7 +17,12 @@ async function test(browser) {
     const page = await browser.newPage({viewport: {width: 360, height: 800}});
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
+    await page.route("https://api.github.com/**/receipt-cohort.yml/runs?*", route => route.fulfill({
+        json: {workflow_runs: [{id: 123, run_attempt: 2, status: "in_progress", conclusion: null,
+            head_repository: {full_name: "postmelee/rhwp-fidelity-dashboard"}}]}
+    }));
     await page.goto(base);
+    await page.locator("#receipt-run-state").getByRole("link", {name: "Measurement in progress · 123"}).waitFor();
     await expectTab(page, "overview");
     assert.match(await page.locator("#overview").innerText(), /4 approved documents · 4 target pages/);
     assert.match(await page.locator("#overview").innerText(), /v0\.9\.1 · Unmeasured/);
