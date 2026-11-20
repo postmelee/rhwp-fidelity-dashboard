@@ -91,6 +91,13 @@ async function test(browser) {
     const numeric = await (await page.request.get(base + "records/" + completeRun + ".json")).json();
     const snapshot = await (await page.request.get(base + "summary.json")).json();
     assert.deepEqual(snapshot.last_complete, numeric);
+    const inventory = snapshot.corpus_inventory;
+    assert.equal(inventory.source_paths, 3800);
+    assert.equal(inventory.unique_blobs, 3651);
+    assert.equal(inventory.receipt_verified_sources, 34);
+    const overview = page.locator("#overview");
+    assert.match(await overview.textContent(), /3,800/);
+    assert.match(await overview.textContent(), /3,651/);
     const metrics = comparison.getByRole("table", {name: "Backend coverage and silhouette"});
     assert.deepEqual(await metrics.locator("thead th button").allTextContents(), ["Metric", "WASM Canvas2D", "Native Skia"]);
     await comparison.getByRole("link", {name: "Document and page details"}).click();

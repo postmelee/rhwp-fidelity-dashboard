@@ -1,0 +1,35 @@
+name: Pinned corpus inventory
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['scripts/corpus_inventory.py', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
+  push:
+    branches: [main]
+    paths: ['scripts/corpus_inventory.py', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Fetch pinned tree and verify numeric inventory
+        run: |
+          repo="$RUNNER_TEMP/rhwp-inventory"
+          rev="$(python3 -c 'import json; print(json.load(open("corpus/inventory-summary.json"))["source_revision"])')"
+          git init -q "$repo"
+          git -C "$repo" remote add origin https://github.com/edwardkim/rhwp.git
+          git -C "$repo" -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$rev"
+          python3 scripts/corpus_inventory.py "$repo" --check --rows "$RUNNER_TEMP/inventory-rows.json"
+          python3 - "$RUNNER_TEMP/inventory-rows.json" <<'PY'
+          import json, sys
+          rows = json.load(open(sys.argv[1]))["rows"]
+          indexed = {row["path"]: row for row in rows}
+          assert len(indexed) == len(rows)
+          assert sum(row["resolver_scope"] == "excluded" for row in rows) == 62
+          example = indexed["mydocs/pr/assets/issue7445/30269-anticorruption-recommendation-toc.hwp"]
+          assert any("oracle" in d["axes"] and d["issue"] == "7729" for d in example["visual_deferrals"])
+          PY

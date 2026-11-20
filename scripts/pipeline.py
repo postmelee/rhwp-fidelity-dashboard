@@ -178,8 +178,10 @@ def build(folder, out, corpus):
     for record in records:
         name = f'{record["run_id"]}-{record["attempt"]}.json'
         write_json(out / "records" / name, record)
-    render_site(out, records, docs)
+    inventory = read_json(ROOT / "corpus/inventory-summary.json")
+    render_site(out, records, docs, inventory)
     write_json(out / "summary.json", {
+        "corpus_inventory": inventory,
         "latest_attempted": records[-1] if records else None,
         "last_complete": next((r for r in reversed(records) if r["status"] == "complete"), None),
         "target_documents": len(docs),

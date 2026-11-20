@@ -12,3 +12,15 @@
 - [upstream oracle resolver 재사용과 누락 PDF 검토](../corpus/ORACLE_CATALOG.md)
 - [측정 계약](METHODOLOGY.md)
 - [문서 목록](README.md)
+
+## 전체 원본 인벤토리
+
+`summary.json`의 `corpus_inventory`는 네 루트에 있는 모든 HWP/HWPX 경로와 고유 Git blob을 집계합니다. 릴리즈별 `target_documents`와 `target_pages`는 해당 smoke 실행의 분모입니다. Print 영수증 집계는 지정한 한 묶음의 원본·PDF 실제 바이트와 Print 근거에 한정됩니다. 릴리즈 실측률은 별도의 실행 기록이 필요합니다.
+
+해당 Git 커밋과 객체를 읽을 수 있는 rhwp 저장소에서 아래 명령으로 전체 행을 재생성할 수 있습니다. 명령은 고정 커밋의 Git 객체를 읽습니다.
+
+```sh
+python3 scripts/corpus_inventory.py /path/to/rhwp --rows /tmp/rhwp-inventory.json --check
+```
+
+각 행에는 원본 경로, blob, 동일 blob을 가리키는 경로 수, 일반 회귀 보류, 검사 축별 이관과 추적 이슈, 쪽수 기준표 등록, resolver 수집 범위와 지정한 영수증의 감사 결과가 있습니다. 빈 이관 목록은 해당 원장의 이관 기록이 없다는 뜻입니다. 빈 영수증 목록은 해당 묶음에 증거가 없다는 뜻입니다. Pages에는 루트별 합계와 검증 건수를 공개합니다.
