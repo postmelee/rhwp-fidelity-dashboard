@@ -97,7 +97,7 @@ class BoundaryTests(unittest.TestCase):
             page = (root/"site/index.html").read_text()
             data = core.read_json(root/"site/summary.json")
             self.assertIn("No measurements available", page)
-            self.assertIn("overflow-x:auto", page)
+            self.assertIn("overflow-x:auto", (root/"site/dashboard.css").read_text())
             self.assertIsNone(data["last_complete"])
             self.assertEqual(data["target_documents"], 0)
     def test_adapter_accepts_complete_warning_manifest(self):
@@ -125,7 +125,7 @@ class BoundaryTests(unittest.TestCase):
         self.assertNotIn("--resume", text)
         self.assertNotIn("persist-credentials: true", text)
         for line in text.splitlines():
-            if "uses:" in line:
+            if "uses:" in line and "uses: ./" not in line:
                 self.assertRegex(line.strip(), r"uses: [A-Za-z0-9_/-]+@[0-9a-f]{40}$")
         self.assertIn('REQUESTED_REF:', text)
         self.assertIn('contents: read', text)
@@ -198,9 +198,9 @@ class BoundaryTests(unittest.TestCase):
             prior = dict(plan("v1",None,("v1sha","stable-release")), status="complete")
             next_plan, needed = pipeline.choose_plan("",None,[prior])
             self.assertTrue(needed)
-            self.assertEqual(next_plan["source_ref"],"v2")
+            self.assertEqual(next_plan["source_ref"],"v3")
             last_plan, needed = pipeline.choose_plan("",None,[prior,dict(next_plan,status="complete")])
-            self.assertEqual(last_plan["source_ref"],"v3")
+            self.assertEqual(last_plan["source_ref"],"v2")
             _, needed = pipeline.choose_plan("",None,[prior,dict(next_plan,status="complete"),dict(last_plan,status="complete")])
             self.assertFalse(needed)
     def test_retagged_processed_release_is_pending(self):
@@ -224,7 +224,40 @@ class BoundaryTests(unittest.TestCase):
         publish = source.split("  publish:",1)[1]
         condition = next(l for l in publish.splitlines() if l.strip().startswith("if:"))
         self.assertNotIn("needed",condition)
-        self.assertIn("publish --reuse",publish)
+        self.assertIn("needs.record.result == 'skipped'", publish)
+        self.assertIn("uses: ./.github/workflows/pages.yml", publish)
+        pages = (pipeline.ROOT / ".github/workflows/pages.yml").read_text()
+        self.assertIn("build --fetch-ledger", pages)
+        self.assertNotIn("contents: write", pages)
+        self.assertNotIn("resolve", pages)
+        self.assertNotIn("  push:", source)
+
+    def test_measurement_fingerprint_excludes_publication_and_display(self):
+        root = pipeline.ROOT
+        fingerprint = pipeline.producer_fingerprint(root)
+        with tempfile.TemporaryDirectory() as temporary:
+            shadow = Path(temporary)
+            for name in ("scripts/core.py", "scripts/adapter.py", ".github/workflows/fidelity.yml"):
+                (shadow / name).parent.mkdir(parents=True, exist_ok=True)
+                (shadow / name).write_bytes((root / name).read_bytes())
+            workflow = shadow / ".github/workflows/fidelity.yml"
+            original = workflow.read_text()
+            workflow.write_text(original.replace("uses: ./.github/workflows/pages.yml", "uses: ./.github/workflows/other.yml"))
+            (shadow / "scripts/pipeline.py").write_text("# resolver and display changed")
+            self.assertEqual(pipeline.producer_fingerprint(shadow), fingerprint)
+            workflow.write_text(original.replace("timeout-minutes: 180", "timeout-minutes: 181"))
+            self.assertNotEqual(pipeline.producer_fingerprint(shadow), fingerprint)
+            workflow.write_text(original)
+            with (shadow / "scripts/adapter.py").open("a") as file:
+                file.write("\n# different producer\n")
+            self.assertNotEqual(pipeline.producer_fingerprint(shadow), fingerprint)
+
+    def test_legacy_identity_is_preserved_for_the_matching_producer_only(self):
+        plan = pipeline.make_plan("v0.9.0", pipeline.ROOT / "corpus", ("1"*40, "stable-release"))
+        old = dict(plan, adapter_sha256=pipeline.LEGACY_ADAPTER)
+        changed = dict(plan, adapter_sha256="0"*64)
+        self.assertEqual(pipeline.identity(old), pipeline.identity(plan))
+        self.assertNotEqual(pipeline.identity(old), pipeline.identity(changed))
     def test_four_pair_manifest_is_metadata_only(self):
         catalog = core.manifest(pipeline.ROOT/"corpus",verify=False)
         self.assertEqual(len(catalog["documents"]),4)

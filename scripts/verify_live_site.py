@@ -1,24 +1,25 @@
-"""Verify the actual Pages response, including the exact newly published JSON."""
-import json
+"""Check that public Pages serves the exact site built from the validated ledger."""
 from pathlib import Path
 import time
 import urllib.request
 
-expected = json.loads(Path("site/summary.json").read_text())
-expected_page = Path("site/index.html").read_text()
-base = "https://postmelee.github.io/rhwp-fidelity-dashboard/"
+ROOT = Path("site")
+BASE = "https://postmelee.github.io/rhwp-fidelity-dashboard/"
+paths = ["index.html", "summary.json", "dashboard.css", "dashboard.js"]
+paths.extend(path.relative_to(ROOT).as_posix() for path in sorted((ROOT / "records").glob("*.json")))
+expected = {name: (ROOT / name).read_bytes() for name in paths}
+
 for attempt in range(30):
     try:
         suffix = "?verify=" + str(time.time_ns())
-        with urllib.request.urlopen(base + "summary.json" + suffix, timeout=15) as response:
-            observed = json.load(response)
-        with urllib.request.urlopen(base + suffix, timeout=15) as response:
-            page = response.read().decode()
-        if observed == expected and page == expected_page and "Canvas2D and Skia against the same Hancom golden" in page:
-            print("Live Pages exact HTML and summary verified: " + base)
-            break
-    except (OSError, ValueError):
-        pass
-    time.sleep(5)
-else:
-    raise SystemExit("Live Pages response did not match the published artifact")
+        for name, data in expected.items():
+            url_path = "" if name == "index.html" else name
+            with urllib.request.urlopen(BASE + url_path + suffix, timeout=15) as response:
+                if response.read() != data:
+                    raise ValueError(f"public content differs for {name}")
+        print(f"Verified public HTML, assets and every numeric record ({len(paths)} files): {BASE}")
+        break
+    except (OSError, ValueError) as error:
+        if attempt == 29:
+            raise SystemExit(f"Live Pages verification failed: {error}") from error
+        time.sleep(5)
