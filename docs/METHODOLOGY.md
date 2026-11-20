@@ -45,4 +45,14 @@ WASM Canvas2D는 측정 SHA에서 새로 빌드한 browser Canvas2D 경로이며
 | [fidelity_compare](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/tools/fidelity_compare/README.md) | 텍스트 누락·중복·다른 쪽 배치 후보와 검토 완료 건수를 구분하면 실루엣이 놓치는 작은 오류를 설명할 수 있습니다. |
 | [Render Diff](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/.github/workflows/render-diff.yml) · [Full Renderer Sweep](https://github.com/edwardkim/rhwp/blob/c198dc3ef167df9b84b6825606e98f618fb628f7/.github/workflows/full-renderer-sweep.yml) | 동일 조건으로 두 트리가 그린 페이지 수, 허용차 초과 페이지 수, fallback을 검증하면 내부 출력 경로의 일관성을 별도로 표시할 수 있습니다. Full Renderer Sweep은 수동 실행이며 각 아티팩트의 실제 비교 대상을 확인해야 합니다. |
 
+## PR 제출 시 Visual Sweep TSV 재사용
+
+[postmelee의 rhwp PR #9024](https://github.com/edwardkim/rhwp/pull/9024)에는 동일한 HWPX에 대한 [Native TSV](https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/original/head/hwpx-native.tsv), [WASM TSV](https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/original/head/hwpx-wasm.tsv), [입력·producer와 base/head 대조 기록](https://github.com/edwardkim/rhwp/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/README.md)이 있습니다. 각 TSV의 `page`는 1~763입니다. `silhouette_raw_match_percent` 표시값의 최저는 Native 18쪽 96.35%, WASM 757쪽 99.56%입니다. 두 최저값의 차이로 같은 쪽의 렌더러 차이를 계산할 수 없습니다. 페이지 번호로 결합해야 합니다.
+
+| 재사용 목적 | 필요한 증거와 집계 |
+|---|---|
+| PR 후보의 한컴 대비 결과 조회 | PR과 증적 커밋, 실제 측정한 소스·실행물, 원본·Print PDF 해시, backend·profile·DPI·글꼴·쪽 범위를 연결합니다. TSV의 원래 열 이름과 정밀도를 보존하고 미수집·누락·중복 쪽을 표시합니다. |
+| PR 회귀 검토 | 같은 backend에서 조건이 일치하는 base와 head를 쪽별 대조합니다. 2%p 초과 하락 쪽 수와 최대 하락폭을 표시합니다. 경계값은 원 정밀도 자료로 판정하며 반올림된 TSV만 있으면 판정을 보류합니다. |
+| 릴리즈 측정 재사용 | 측정한 tree, 실행물, 입력 및 실행 계약이 해당 릴리즈와 일치하는 쪽만 연결합니다. 이 예시의 행은 PR 증적으로 열람하며 릴리즈 coverage는 기존 측정 원장에서 계산합니다. |
+
 [운영](OPERATIONS.md) · [문서 목록](README.md)

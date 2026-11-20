@@ -50,11 +50,11 @@ class BoundaryTests(unittest.TestCase):
                   "measurement": {"backends": {key: copy.deepcopy(self.backend) for key in ("native", "wasm")}}}
         record["measurement"]["backends"]["native"]["documents"][0]["scores"][1]["raw"] = 90
         page = site.release_panel("a"*40, "v1", [record], self.docs)
-        self.assertIn("90% raw silhouette on 1/2 compared pages", page)
+        self.assertIn("<dt>Both ≥90% / paired pages</dt><dd>1/2</dd>", page)
         record["measurement"]["backends"]["native"]["documents"][0]["rendered_pages"] = 3
         page = site.release_panel("a"*40, "v1", [record], self.docs)
-        self.assertNotIn("90% raw silhouette on", page)
-        self.assertIn("0/2 pages with paired golden scores", page)
+        self.assertIn("<dt>Both ≥90% / paired pages</dt><dd>Unmeasured</dd>", page)
+        self.assertIn("<dt>Paired pages / target</dt><dd>0/2</dd>", page)
         self.assertIn("Native Skia 0/1", page)
         self.assertIn("89.1", site.document_table(record, self.docs))
 
@@ -124,7 +124,7 @@ class BoundaryTests(unittest.TestCase):
             pipeline.build(root/"records", root/"site", root/"corpus")
             page = (root/"site/index.html").read_text()
             data = core.read_json(root/"site/summary.json")
-            self.assertIn("No measurements available", page)
+            self.assertIn("Unmeasured", page)
             self.assertIn("overflow-x:auto", (root/"site/dashboard.css").read_text())
             self.assertIsNone(data["last_complete"])
             self.assertEqual(data["target_documents"], 0)
@@ -203,7 +203,7 @@ class BoundaryTests(unittest.TestCase):
             self.assertIn("Document and page details", page)
             self.assertIn("Reproduction and provenance", page)
             self.assertIn("Page build revision:", page)
-            self.assertIn("Native and browser runtime/font behavior can differ", page)
+            self.assertIn("backend-specific font selection", page)
             self.assertIn("89.1", page)
 
     def test_release_pagination_filters_and_orders_every_page(self):

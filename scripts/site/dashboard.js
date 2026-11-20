@@ -18,7 +18,7 @@ function filterHistory() {
         run.hidden = (!allHistory.checked && !sameRelease) || Boolean(filter.value && run.dataset.status !== filter.value);
     }
     const count = runs.filter(run => !run.hidden).length;
-    document.getElementById("filter-result").textContent = count + " of " + runs.length + " attempts shown.";
+    document.getElementById("filter-result").textContent = "Visible / total attempts · " + count + "/" + runs.length;
 }
 
 function activate(index) {
