@@ -21,6 +21,18 @@ async function test(browser) {
     await expectTab(page, "overview");
     assert.match(await page.locator("#overview").innerText(), /4 approved documents · 4 target pages/);
     assert.match(await page.locator("#overview").innerText(), /v0\.9\.1 · Unmeasured/);
+    const picker = page.locator("#release-picker");
+    await picker.selectOption({label: "v0.9.0 · c9095c5f"});
+    const selected = page.locator(".release-view:visible");
+    assert.ok((await selected.innerText()).includes("4/4 pages with paired golden scores"));
+    assert.match(await selected.innerText(), /CanvasKit unmeasured/);
+    assert.match(await selected.innerText(), /Render Diff evidence unavailable/);
+    const largest = selected.locator("tbody tr:first-child td");
+    assert.deepEqual(await largest.allTextContents(), ["pic-crop-01.hwp","1","94.65178","99.99756","+5.34578"]);
+    await page.reload();
+    assert.match(await selected.innerText(), /v0\.9\.0 · Smoke complete/);
+    await picker.selectOption({index: 0});
+    assert.equal(await selected.locator("table").count(), 0);
     await page.locator("#tab-overview").focus();
     await page.keyboard.press("ArrowRight");
     await expectTab(page, "renderers");

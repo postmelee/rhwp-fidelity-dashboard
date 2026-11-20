@@ -27,6 +27,9 @@ jobs:
           ref: main
           persist-credentials: false
       - name: Build from validated durable ledger
+        env:
+          REFRESH_RELEASE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
           export GITHUB_SHA="$(git rev-parse HEAD)"
           python3 scripts/pipeline.py build --fetch-ledger
