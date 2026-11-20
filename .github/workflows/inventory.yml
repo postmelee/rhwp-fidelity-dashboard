@@ -2,10 +2,10 @@ name: Pinned corpus inventory
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['scripts/corpus_inventory.py', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
+    paths: ['scripts/corpus_inventory.py', 'scripts/check_pr_9024.py', 'scripts/site/pr-9024-pages.json', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
   push:
     branches: [main]
-    paths: ['scripts/corpus_inventory.py', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
+    paths: ['scripts/corpus_inventory.py', 'scripts/check_pr_9024.py', 'scripts/site/pr-9024-pages.json', 'corpus/inventory-summary.json', '.github/workflows/inventory.yml']
 permissions:
   contents: read
 jobs:
@@ -33,3 +33,5 @@ jobs:
           example = indexed["mydocs/pr/assets/issue7445/30269-anticorruption-recommendation-toc.hwp"]
           assert any("oracle" in d["axes"] and d["issue"] == "7729" for d in example["visual_deferrals"])
           PY
+      - name: Verify PR page pairs against the published TSV digests
+        run: python3 scripts/check_pr_9024.py scripts/site/pr-9024-pages.json

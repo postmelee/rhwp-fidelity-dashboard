@@ -5,7 +5,7 @@ import urllib.request
 
 ROOT = Path("site")
 BASE = "https://postmelee.github.io/rhwp-fidelity-dashboard/"
-paths = ["index.html", "summary.json", "dashboard.css", "dashboard.js"]
+paths = ["pr-9024.html", "index.html", "summary.json", "dashboard.css", "dashboard.js"]
 paths.extend(path.relative_to(ROOT).as_posix() for path in sorted((ROOT / "records").glob("*.json")))
 expected = {name: (ROOT / name).read_bytes() for name in paths}
 
