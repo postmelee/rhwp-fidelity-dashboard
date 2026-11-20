@@ -1,7 +1,7 @@
 name: Checks
 on:
   push:
-    branches: [main]
+    branches: [main, ui/smoke-ledger-tabs]
   pull_request:
 permissions:
   contents: read
@@ -23,14 +23,14 @@ jobs:
           python3 scripts/http_smoke.py
 
       - name: Build preview from the pinned public numeric ledger
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/ui/smoke-ledger-tabs'
         run: |
           git init "$RUNNER_TEMP/preview-ledger"
           git -C "$RUNNER_TEMP/preview-ledger" fetch --depth=1 https://github.com/postmelee/rhwp-fidelity-dashboard.git 17e6e4463c950c988c93b3ddb1afa09d8e556634
           git -C "$RUNNER_TEMP/preview-ledger" checkout FETCH_HEAD -- records
           python3 scripts/pipeline.py build --ledger "$RUNNER_TEMP/preview-ledger" --out preview
       - name: Browser smoke on preview
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/ui/smoke-ledger-tabs'
         run: |
           npm install --prefix "$RUNNER_TEMP/browser-test" --no-save --ignore-scripts playwright-core@1.56.1
           export NODE_PATH="$RUNNER_TEMP/browser-test/node_modules"
@@ -42,7 +42,7 @@ jobs:
           done
           node tests/dashboard_browser.cjs
       - name: Upload static preview
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/ui/smoke-ledger-tabs'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: dashboard-preview
