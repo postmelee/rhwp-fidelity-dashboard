@@ -124,6 +124,15 @@ async function test(browser) {
     assert.match(await page.locator("#document-" + failedRun).innerText(), /unavailable/);
     assert.deepEqual(errors, []);
 
+    await page.goto(base + "#renderers");
+    await page.getByRole("link", {name: /Historical PR #9024/}).click();
+    const pageRows = page.locator("tbody tr");
+    assert.equal(await pageRows.count(), 763);
+    assert.deepEqual(await pageRows.filter({has: page.getByRole("cell", {name: "18", exact: true})}).locator("td").allTextContents(),
+        ["18", "96.35", "100.00", "-3.65"]);
+    await page.setViewportSize({width: 320, height: 720});
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
     assert.ok(await noScript.locator("#overview").isVisible());

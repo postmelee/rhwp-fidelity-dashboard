@@ -376,6 +376,33 @@ def methods():
 """
 
 
+def historical_pr_pages(out):
+    rows = json.loads((SITE / "pr-9024-pages.json").read_text())
+    by_gap = sorted(rows, key=lambda row: (-abs(round(row[1] - row[2], 2)), row[0]))
+    headers = ["Page", "Native Skia (%)", "WASM Canvas2D (%)", "Skia minus Canvas2D (pp)"]
+    body = "".join(
+        "<tr>" + "".join(f'<td data-label="{header}">{value}</td>' for header, value in zip(
+            headers, [p, f"{native:.2f}", f"{wasm:.2f}", f"{native - wasm:+.2f}"])) + "</tr>"
+        for p, native, wasm in by_gap
+    )
+    labels = "".join(f'<th scope="col">{header}</th>' for header in headers)
+    source = f"{UPSTREAM}/blob/39a3774de60c81a3b803d158c044ddc195733eb6/mydocs/pr/assets/issue8946/stage10-20261114/"
+    (out / "pr-9024.html").write_text(f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>rhwp PR #9024 · HWPX pages</title><link rel="stylesheet" href="dashboard.css"></head>
+<body><main><a href="index.html#renderers">Renderer comparison</a><h1>PR #9024 · HWPX</h1>
+<p>Historical PR measurement · 763 paired pages · Hancom Print · 96 DPI</p>
+<p>Supplied font files · Native 75 / WASM 71 · Different font sets</p>
+<p>Reference PDF · Local-only · <a href="{source}input-commit-audit.json">Input hashes</a></p>
+<p><a href="{source}original/head/hwpx-native.tsv">Native TSV</a> ·
+<a href="{source}original/head/hwpx-wasm.tsv">WASM TSV</a> ·
+<a href="{source}visual-provenance.json">TSV provenance</a> ·
+<a href="{source}producer.json">Measured build</a> · <a href="{UPSTREAM}/pull/9024">PR</a></p>
+<div class="scroll"><table class="page-grid"><caption>Raw silhouette · Absolute score gap ↓</caption>
+<thead><tr>{labels}</tr></thead><tbody>{body}</tbody></table></div></main></body></html>
+""", encoding="utf-8")
+
+
 def render_site(out, records, docs, inventory):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
@@ -391,9 +418,11 @@ def render_site(out, records, docs, inventory):
             print("Release lookup unavailable; displaying dated observation.")
     observations = {(e["run_id"], e["attempt"]): e for e in snapshot["attempts"]}
     groups = release_groups(records, snapshot["release"])
+    historical_pr_pages(out)
     panes = {
         "overview": inventory_section(inventory) + overview(records, docs, snapshot["release"], groups),
-        "renderers": run_views(groups, docs, "compare", renderer_tables),
+        "renderers": (run_views(groups, docs, "compare", renderer_tables) +
+                      '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
         "documents": ('<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
         "history": history_view(records, observations),
