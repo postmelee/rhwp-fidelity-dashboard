@@ -140,7 +140,7 @@ def release_panel(sha, tag, attempts, docs):
                    f'<p>Matching / known documents · {" · ".join(counts)}</p>')
     if last and last != record:
         source += f'<p>Most recent attempt: {run_link(last)}</p>'
-    body = (f'<h3 class="release-title">{esc(tag)} · Smoke · {heading}</h3>'
+    body = (f'<h3 class="release-title">{esc(tag)} · {heading}{" (smoke scope)" if not record else ""}</h3>'
             f'<div class="cards decisions">{"".join(cards)}</div>{source}')
     if measured:
         body += '<h4>Lowest page silhouette vs Hancom (%)</h4>'
