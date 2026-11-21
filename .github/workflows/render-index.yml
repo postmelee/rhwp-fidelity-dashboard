@@ -3,8 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       merged_commit:
-        description: Optional upstream merge commit to compare with the tested tree
+        description: Upstream merge commit (clear for an unmerged PR)
         required: false
+        default: '1a27faacff48ea7329e76ce8eca15aa9ca8aa877'
       run_id:
         description: Upstream Render Diff run
         required: true
