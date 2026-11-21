@@ -2,10 +2,14 @@ name: Verify indexed Render Diff
 on:
   workflow_dispatch:
     inputs:
+      merged_commit:
+        description: Upstream merge commit (clear for an unmerged PR)
+        required: false
+        default: '1a27faacff48ea7329e76ce8eca15aa9ca8aa877'
       run_id:
         description: Upstream Render Diff run
         required: true
-        default: '44942420688'
+        default: '44946084496'
       attempt:
         description: Run attempt
         required: true
@@ -15,7 +19,7 @@ on:
         required: true
         default: '9300'
   pull_request:
-    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml', 'corpus/pr-evidence/render-diff-44942420688-1.json']
+    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml', 'corpus/pr-evidence/render-diff-44946084496-1.json']
 permissions:
   contents: read
   actions: read
@@ -30,11 +34,14 @@ jobs:
       - name: Verify producer archives and derive page records
         env:
           GH_TOKEN: ${{ github.token }}
-          UPSTREAM_RUN: ${{ inputs.run_id || '44942420688' }}
+          MERGED_COMMIT: ${{ inputs.merged_commit || (github.event_name == 'pull_request' && '1a27faacff48ea7329e76ce8eca15aa9ca8aa877') || '' }}
+          UPSTREAM_RUN: ${{ inputs.run_id || '44946084496' }}
           UPSTREAM_ATTEMPT: ${{ inputs.attempt || '1' }}
           UPSTREAM_PR: ${{ inputs.pr || '9300' }}
         run: |
-          python3 scripts/import_render_index.py "$UPSTREAM_RUN" "$UPSTREAM_ATTEMPT" "$UPSTREAM_PR" record.json
+          args=()
+          if [[ -n "$MERGED_COMMIT" ]]; then args+=(--merged-commit "$MERGED_COMMIT"); fi
+          python3 scripts/import_render_index.py "$UPSTREAM_RUN" "$UPSTREAM_ATTEMPT" "$UPSTREAM_PR" record.json "${args[@]}"
           python3 - <<'PY'
           import json
           from pathlib import Path

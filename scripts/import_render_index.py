@@ -42,7 +42,7 @@ def member(bundle, path):
     return bundle.read(entry)
 
 
-def collect(run, attempt, pr):
+def collect(run, attempt, pr, merged_commit=None):
     route = f"actions/runs/{run}/attempts/{attempt}"
     meta = api(route)
     require(meta["event"] == "pull_request" and meta["repository"]["full_name"] == REPO
@@ -74,8 +74,15 @@ def collect(run, attempt, pr):
         require((index["schema_version"], index["run_id"], index["run_attempt"], index["pr_head"]) ==
                 (1, run, attempt, head), "Index run or source identity differs")
         commit = api("git/commits/" + tested)
-        require(tested == head or [p["sha"] for p in commit["parents"]] == [base, head],
-                "Tested source differs from PR identity")
+        parents = [p["sha"] for p in commit["parents"]]
+        advanced_base = None
+        if tested != head:
+            require(len(parents) == 2 and parents[1] == head, "Unexpected merge parents")
+            if parents[0] != base:
+                require(merged_commit, "Changed base requires the final merge identity")
+                advanced_base = match(SHA, parents[0])
+                require(api(f"compare/{base}...{advanced_base}")["status"] == "ahead",
+                        "Tested base does not descend from the event base")
         for path, checksum in index["files"].items():
             require(digest(member(full, path)) == match(HASH, checksum), "Indexed digest differs: " + path)
         build = json.loads(member(full, BUILD + "build.json"))
@@ -101,6 +108,22 @@ def collect(run, attempt, pr):
               "source_tree_sha": commit["tree"]["sha"], "fixture_root": root, "fixture_blobs": blobs,
               "artifact_id": prod["id"], "artifact_name": prod["name"], "artifact_sha256": digest(archive),
               "index_artifact_id": idx["id"], "index_sha256": digest(raw), "measured_at": job["completed_at"]}
+    if merged_commit:
+        merged = match(SHA, merged_commit)
+        pull = api(f"pulls/{pr}")
+        require(pull.get("merged") and pull["head"]["sha"] == head and pull["merge_commit_sha"] == merged,
+                "Merged commit does not match the verified PR head")
+        origin["merge_sha"] = merged
+        final = api("git/commits/" + merged)
+        origin["merge_tree_sha"] = match(SHA, final["tree"]["sha"])
+        if advanced_base:
+            final_parents = [p["sha"] for p in final["parents"]]
+            require(len(final_parents) == 2 and final_parents[1] == head,
+                    "Cannot verify changed base against final PR merge")
+            final_base = match(SHA, final_parents[0])
+            require(api(f"compare/{advanced_base}...{final_base}")["status"] in {"ahead", "identical"},
+                    "Tested base falls outside the final base history")
+            origin["tested_base_sha"] = advanced_base
     report = import_archive(archive, origin)
     report["build"]["executables"]["target/debug/rhwp"].update(sha256=native_sha, source=native_path)
     for track, key in (("canvas", "canvas"), ("browser_pdf", "browser"), ("direct_pdf", "direct")):
@@ -116,5 +139,6 @@ if __name__ == "__main__":
     for name in ("run", "attempt", "pr"):
         parser.add_argument(name, type=int)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--merged-commit")
     args = parser.parse_args()
-    write_json(args.output, collect(args.run, args.attempt, args.pr))
+    write_json(args.output, collect(args.run, args.attempt, args.pr, args.merged_commit))

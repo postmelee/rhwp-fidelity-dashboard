@@ -47,6 +47,12 @@ def render_diff(record, ledger):
             f'<a href="{UPSTREAM}/commit/{source}"><code>{source}</code></a> · Tree <code>{tree}</code></p>'
             f'<p>ZIP SHA-256 <code>{match(HASH, o["artifact_sha256"])}</code> · '
             f'<a href="{ledger}">Numeric ledger and file hashes</a></p>')
+    if "merge_sha" in o:
+        merged = match(SHA, o["merge_sha"])
+        merged_tree = match(SHA, o["merge_tree_sha"])
+        relation = "Matches tested tree" if merged_tree == tree else "Differs from tested tree"
+        body += (f'<p>Merged commit <a href="{UPSTREAM}/commit/{merged}"><code>{merged}</code></a> · '
+                 f'Tree <code>{merged_tree}</code> · {relation}</p>')
     coverage = []
     decisions = {}
     details = []
