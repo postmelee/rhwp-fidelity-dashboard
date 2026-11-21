@@ -25,7 +25,7 @@ jobs:
           python-version: '3.12'
       - run: |
           sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
           python -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
           cd upstream
           cargo build --release --locked --bin rhwp --features native-skia
