@@ -42,6 +42,7 @@ def build(out, inventory, archive):
         else:
             state = "Paired"
         output.append({"path_sha256": key, "id": doc.get("id"), "root": next(r for r in ROOTS if name.startswith(r + "/")),
+                       "oracle_state": row.get("oracle_state", "unaudited"),
                        "format": name.rsplit(".", 1)[1].lower(), "blob": row["blob"],
                        "paths_with_same_blob": row["paths_with_same_blob"], "resolver_scope": row["resolver_scope"],
                        "page_count_baseline": row["page_count_baseline"], "receipt_verified": receipt,
@@ -65,7 +66,7 @@ def build(out, inventory, archive):
             '<p id="count" aria-live="polite">Loading inventory…</p>'
             '<button id="prev" type="button">Previous</button> <button id="next" type="button">Next</button>'
             '<div class="scroll"><table class="page-grid"><caption>Source paths</caption><thead><tr>'
-            + "".join(f'<th scope="col">{h}</th>' for h in ("Path ID", "Root", "Format", "Aliases", "Release status", "Resolver", "Deferred axes"))
+            + "".join(f'<th scope="col">{h}</th>' for h in ("Path ID", "Root", "Format", "Aliases", "Release status", "Print reference", "Resolver", "Deferred axes"))
             + '</tr></thead><tbody></tbody></table></div><p><a href="corpus-index.json">Complete inventory JSON</a></p>')
     (out / "corpus-index.html").write_text(page("Corpus inventory", body, '<script src="corpus-index.js" defer></script>'))
     return f'<p><a href="corpus-index.html">Browse all {len(rows):,} source paths</a> · Paired in this release run {statuses.get("Paired", 0):,}/{len(rows):,}</p>'
