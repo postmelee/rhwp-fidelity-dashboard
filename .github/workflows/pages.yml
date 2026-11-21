@@ -57,9 +57,30 @@ jobs:
         run: python3 scripts/wait_pages_artifact.py
       - name: Deploy using OIDC
         id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          PAGES_ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
         with:
-          artifact_name: github-pages-${{ github.run_attempt }}
+          script: |
+            const artifactId = Number(process.env.PAGES_ARTIFACT_ID)
+            if (!Number.isSafeInteger(artifactId) || artifactId <= 0) throw Error("Invalid Pages artifact ID")
+            const repo = context.repo
+            const token = await core.getIDToken()
+            const {data} = await github.request("POST /repos/{owner}/{repo}/pages/deployments", {
+              ...repo, artifact_id: artifactId, pages_build_version: context.sha, oidc_token: token
+            })
+            core.setOutput("page_url", data.page_url)
+            for (let poll = 0; poll < 100; poll++) {
+              const {data: deployment} = await github.request("GET /repos/{owner}/{repo}/pages/deployments/{id}", {
+                ...repo, id: data.id
+              })
+              if (deployment.status === "succeed") return
+              if (["deployment_failed", "deployment_content_failed", "deployment_cancelled", "deployment_lost"].includes(deployment.status)) {
+                throw Error("Pages deployment: " + deployment.status)
+              }
+              await new Promise(resolve => setTimeout(resolve, 5000))
+            }
+            throw Error("Pages deployment did not report success")
       - name: Verify public HTML, assets and numeric records
         run: python3 scripts/verify_live_site.py
       - name: Check live inventory and release scores in Chromium
