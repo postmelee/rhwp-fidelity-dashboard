@@ -12,6 +12,10 @@ on:
         options: [devel, stable]
         default: devel
         description: Upstream track
+      retry_devel:
+        type: boolean
+        default: false
+        description: Retry an incomplete measurement at the current devel SHA
 permissions:
   contents: read
 concurrency:
@@ -45,6 +49,7 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RETRY_DEVEL: ${{ inputs.retry_devel }}
           TRACK: ${{ inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
         run: python3 scripts/track_cohort.py plan
   measure:

@@ -19,5 +19,6 @@ class TrackTests(unittest.TestCase):
         self.assertEqual(select([record], [("devel", newest)], config), ("devel", newest))
         self.assertEqual(select([record], [("v1", sha)], config), ("v1", sha))
         partial = dict(record, stages={})
-        self.assertEqual(select([partial], [("devel", sha)], config), ("devel", sha))
+        self.assertEqual(select([partial], [("devel", sha)], config), ("", ""))
+        self.assertEqual(select([partial], [("devel", sha)], config, retry_devel=True), ("devel", sha))
         self.assertEqual(select([partial] * 3, [("devel", sha)], config), ("", ""))

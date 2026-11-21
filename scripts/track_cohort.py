@@ -9,7 +9,7 @@ from receipt_archive import STAGES, persist, validate_archive
 from receipt_cohort import CONFIG, contract, measure
 
 
-def select(previous, candidates, config):
+def select(previous, candidates, config, retry_devel=False):
     attempts = {}
     for record in previous:
         key = (record["tag"], record["engine_sha"], record["cohort_sha256"])
@@ -25,6 +25,8 @@ def select(previous, candidates, config):
                     for backend in stage["measurement"]["backends"].values())
             for record in records
         )
+        if name == "devel" and records and not retry_devel:
+            continue
         if not complete and len(records) < 3:
             return name, sha
     return "", ""
@@ -39,7 +41,7 @@ def plan(track):
         candidates = [("devel", api("commits/devel")["sha"])]
     else:
         candidates = ((r["tag_name"], resolve_ref(r["tag_name"])[0]) for r in stable_releases())
-    tag, sha = select(previous, candidates, config)
+    tag, sha = select(previous, candidates, config, os.environ.get("RETRY_DEVEL") == "true")
     with open(os.environ["GITHUB_OUTPUT"], "a") as dst:
         print(f"tag={tag}\nsha={sha}", file=dst)
     print(f"{track} · {sha or 'no new target'}")
