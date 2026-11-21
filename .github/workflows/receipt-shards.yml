@@ -1,0 +1,69 @@
+name: Verify receipt shards
+on:
+  pull_request:
+    paths: ['scripts/cohort_shards.py', 'scripts/check_shard_replay.py', '.github/workflows/receipt-shards.yml']
+  workflow_dispatch:
+    inputs:
+      engine_sha:
+        description: Exact upstream engine commit
+        required: true
+        default: '2480af27df441ffd199cc24602afddbd2d13dcfe'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: ledger
+          ref: 0aac1f66de68e0f5d81b003ad0ec742447b2df2d
+          persist-credentials: false
+      - run: python3 dashboard/scripts/check_shard_replay.py ledger/cohorts/44766813207-1.json
+  measure:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      ENGINE_SHA: ${{ inputs.engine_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: edwardkim/rhwp
+          ref: ${{ inputs.engine_sha }}
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install measurement toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
+          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack --version 0.15.0 --locked
+      - name: Stop after the first shard
+        run: |
+          status=0
+          python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA" --max-new-shards 1 || status=$?
+          test "$status" -eq 2
+      - name: Resume and measure all remaining shards
+        run: python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: numeric-shards
+          path: |
+            work/*/plan.json
+            work/*/status.json
+            work/*/shard-*.json
+          retention-days: 14
