@@ -180,11 +180,14 @@ def build(folder, out, corpus):
         write_json(out / "records" / name, record)
     inventory = read_json(ROOT / "corpus/inventory-summary.json")
     from cohort_site import build as build_cohort_site
+    from pr_evidence_site import build as build_pr_site
     cohort_runs, cohort_panel = build_cohort_site(Path(folder).parent / "cohorts", out, inventory)
-    render_site(out, records, docs, inventory, cohort_panel)
+    pr_evidence, pr_panel = build_pr_site(ROOT / "corpus/pr-evidence", out)
+    render_site(out, records, docs, inventory, cohort_panel, pr_panel)
     write_json(out / "summary.json", {
         "corpus_inventory": inventory,
         "receipt_cohort_runs": cohort_runs,
+        "pr_evidence": pr_evidence,
         "latest_attempted": records[-1] if records else None,
         "last_complete": next((r for r in reversed(records) if r["status"] == "complete"), None),
         "target_documents": len(docs),
