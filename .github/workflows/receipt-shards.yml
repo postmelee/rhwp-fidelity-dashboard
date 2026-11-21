@@ -25,6 +25,7 @@ jobs:
           persist-credentials: false
       - run: python3 dashboard/scripts/check_shard_replay.py ledger/cohorts/44766813207-1.json
   measure:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     env:
