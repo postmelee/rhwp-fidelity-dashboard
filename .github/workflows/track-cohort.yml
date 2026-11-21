@@ -3,6 +3,8 @@ on:
   schedule:
     - cron: '23 */4 * * *'
     - cron: '47 1 * * *'
+  pull_request:
+    paths: ['scripts/track_cohort.py', '.github/workflows/track-cohort.yml']
   workflow_dispatch:
     inputs:
       track:
@@ -13,9 +15,23 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cohort-track-${{ inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
   cancel-in-progress: false
 jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        track: [devel, stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TRACK: ${{ matrix.track }}
+        run: python3 scripts/track_cohort.py plan
   plan:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
