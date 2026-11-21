@@ -124,6 +124,7 @@ jobs:
     if: always() && needs.archive.result == 'success'
     permissions:
       contents: read
+      actions: read
       pages: write
       id-token: write
     uses: ./.github/workflows/pages.yml
