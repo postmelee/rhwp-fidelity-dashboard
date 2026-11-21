@@ -483,7 +483,8 @@ def corpus_measurement_panel(out, inventory, groups):
             rows.append([title, values.get("measured_pages", 0), score("median"), score("p10"), score("min")])
         rows.extend([[path, 0, "Unmeasured", "Unmeasured", "Unmeasured"]
                      for path in ("WASM CanvasKit", "Render IR output")])
-        link = (f'<p><a href="cohort-{run["run_id"]}-{run["attempt"]}.html">Document and page scores</a></p>'
+        link = (f'<p><a href="cohort-{run["run_id"]}-{run["attempt"]}.html">Document and page scores</a> · '
+                f'<a href="corpus-index.html?run={run["run_id"]}-{run["attempt"]}">All corpus paths for this run</a></p>'
                 if run else "")
         sections.append(f'<section data-release="{sha}" data-preferred="true"><h3>Hancom Print fidelity · {esc(tag)}</h3>'
                         f'<p><strong>{pct:.2f}% measured</strong> · {paired:,} of {counts:,} corpus paths paired · '

@@ -12,6 +12,19 @@ async function run() {
         const index = await (await page.request.get(base + "corpus-index.json")).json();
         await page.goto(base + "corpus-index.html");
         await page.getByText("1–50 of " + index.rows.length, {exact: true}).waitFor();
+        for (const scope of [index.runs[0], index.runs.at(-1)].filter(Boolean)) {
+            await page.goto(base + "corpus-index.html?run=" + scope.key);
+            await page.getByText("1–50 of " + index.rows.length, {exact: true}).waitFor();
+            assert.equal(await page.locator("#run").inputValue(), scope.key);
+            const values = await (await page.request.get(base + "measured-paths/" + scope.key + ".json")).json();
+            const observed = Object.values(values).find(row => row.status === "Paired");
+            if (observed) {
+                await page.locator("#query").fill(observed.id);
+                const row = page.getByRole("row").filter({has: page.getByRole("cell", {name: observed.id, exact: true})});
+                assert.equal(await row.locator("td").nth(5).innerText(), observed.page_median_percent.native.toFixed(5));
+                assert.equal(await row.locator("td").nth(6).innerText(), observed.page_median_percent.wasm.toFixed(5));
+            }
+        }
         for (const run of runs.slice(-1)) {
             const record = await (await page.request.get(base + run.record)).json();
             const key = run.run_id + "-" + run.attempt;
