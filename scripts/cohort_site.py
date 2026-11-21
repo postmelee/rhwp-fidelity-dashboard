@@ -105,13 +105,15 @@ def build(folder, out, inventory):
             f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{s["run_id"]}/attempts/{s["attempt"]}">'
             f'original run {s["run_id"]}, attempt {s["attempt"]}</a></p>'
             for stage, s in record.get("stage_sources", {}).items())
+        registry = "tests/fixtures/oracle_page_count_verified_references.json"
+        registry_url = f'https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{registry}'
         tag = esc(record["tag"])
         body = (f'<p>{("Development branch" if tag == "devel" else "Release")} {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
                 f'<p>Paired documents {summary["paired_docs"]}/{len(record["docs"])} · '
                 f'Paired pages {summary["paired_pages"]}/{len(rows)}. Matching page counts required for score differences.</p>'
                 f'<p><a href="{name}">Numeric record and producer hashes</a> · '
                 f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{record["run_id"]}/attempts/{record["attempt"]}">Measurement run</a> · '
-                f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a></p>'
+                f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a> · <a href="{registry_url}">Registered reference provenance</a></p>'
                 '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
                 links + stats + family_table(record, config, summary["pages"]) +
                 '<label>Find a document <input type="search" id="query"></label> '
@@ -126,7 +128,7 @@ def build(folder, out, inventory):
     (out / "receipt-status.js").write_bytes((Path(__file__).with_name("site") / "receipt-status.js").read_bytes())
     write_json(out / "cohort-runs.json", archive)
     overview = ('<h3>Receipt-backed measurements</h3>'
-                f'<p>Target · {esc(config["tag"])} · {len(docs)} documents · {sum(d["pages"] for d in docs)} reference pages</p>')
+                f'<p>Original receipt bundle · {esc(config["tag"])} · {len(docs)} documents · {sum(d["pages"] for d in docs)} reference pages</p>')
     for r in reversed(archive):
         key = f'{r["run_id"]}-{r["attempt"]}'
         overview += (f'<p><a href="cohort-{key}.html">{esc(r["tag"])} · {r["paired_docs"]}/{r["documents"]} paired documents · '

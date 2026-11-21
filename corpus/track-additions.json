@@ -1,0 +1,26 @@
+{
+  "corpus_sha": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+  "registry": "tests/fixtures/oracle_page_count_verified_references.json",
+  "documents": [
+    {
+      "id": "registered-90e7442874bee1e5",
+      "input": "samples/pr4093/outline_navigation_panel_demo.hwpx",
+      "source_sha256": "90e7442874bee1e5f774287b38323ed556e241539c783e100d0b7b93631aa6b4",
+      "pdf": "pdf/issue7382-regression-review/outline_navigation_panel_demo-2020.pdf",
+      "pdf_sha256": "c24e248c56bad280219bbd32f59fc6f07a3895fb5146b225c9ae4f9e4ac662be",
+      "pages": 3,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json"
+    },
+    {
+      "id": "registered-a033627d1c488172",
+      "input": "samples/pr4093/outline_navigation_table_cell_number.hwpx",
+      "source_sha256": "a033627d1c48817201bee8edd1b2d71b8c49a407af97346b6f1c7fb912602b1c",
+      "pdf": "pdf/issue7382-regression-review/outline_navigation_table_cell_number-2020.pdf",
+      "pdf_sha256": "7e92550f0724026b7c88d1f843411b7ace744cce273f614e338cbd55d40eba81",
+      "pages": 1,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json"
+    }
+  ]
+}

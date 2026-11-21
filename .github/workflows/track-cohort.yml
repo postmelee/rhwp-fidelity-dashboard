@@ -1,10 +1,13 @@
 name: Track receipt cohort
 on:
+  push:
+    branches: [main]
+    paths: [corpus/track-additions.json]
   schedule:
     - cron: '23 */4 * * *'
     - cron: '47 1 * * *'
   pull_request:
-    paths: ['scripts/track_cohort.py', '.github/workflows/track-cohort.yml']
+    paths: ['scripts/track_cohort.py', 'scripts/receipt_cohort.py', 'corpus/track-additions.json', '.github/workflows/track-cohort.yml']
   workflow_dispatch:
     inputs:
       track:
@@ -19,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event_name == 'push' && 'baseline') || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
   cancel-in-progress: false
 jobs:
   preview:
@@ -32,6 +35,31 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Verify additional registered Print pairs with actual file hashes and page counts
+        if: matrix.track == 'stable'
+        run: |
+          python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/pdfcheck"
+          PYTHONPATH="scripts:$RUNNER_TEMP/pdfcheck" python3 - <<'PY'
+          import hashlib
+          import urllib.request
+          import pypdfium2
+          from receipt_cohort import verify_registered
+          from track_cohort import tracked_config
+          config = tracked_config()
+          verify_registered(config)
+          base = "https://raw.githubusercontent.com/edwardkim/rhwp/" + config["corpus_sha"] + "/"
+          for row in config["documents"]:
+              if "reference_evidence" not in row:
+                  continue
+              for path, key in (("input", "source_sha256"), ("pdf", "pdf_sha256")):
+                  with urllib.request.urlopen(base + row[path], timeout=60) as stream:
+                      data = stream.read(32 * 1024 * 1024 + 1)
+                  assert len(data) <= 32 * 1024 * 1024 and hashlib.sha256(data).hexdigest() == row[key]
+                  if path == "pdf":
+                      with pypdfium2.PdfDocument(data) as pdf:
+                          assert len(pdf) == row["pages"]
+              print(row["input"], row["pages"], "registered Print pages")
+          PY
       - env:
           GH_TOKEN: ${{ github.token }}
           TRACK: ${{ matrix.track }}

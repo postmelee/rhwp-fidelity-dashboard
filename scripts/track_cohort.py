@@ -83,12 +83,30 @@ def target_locks():
     return read_json(path) if path.is_file() else {}
 
 
+def tracked_config():
+    config = read_json(CONFIG)
+    extra = read_json(CONFIG.with_name("track-additions.json"))
+    if extra["corpus_sha"] != config["corpus_sha"]:
+        raise ValueError("Registered Print inputs belong to a different corpus tree")
+    config["registry"] = extra["registry"]
+    config["documents"].extend(extra["documents"])
+    for key in ("id", "input"):
+        if len({d[key] for d in config["documents"]}) != len(config["documents"]):
+            raise ValueError("Duplicate tracked document " + key)
+    return config
+
+
 def plan(track):
-    config, _ = contract()
+    config = tracked_config()
     ledger = Path("ledger")
     ledger_repository(ledger)
     previous = [validate_archive(read_json(p)) for p in (ledger / "cohorts").glob("*.json")]
-    if track == "devel":
+    if track == "baseline":
+        resolved, _ = resolve_ref(config["tag"])
+        if resolved != config["engine_sha"]:
+            raise ValueError("Pinned baseline tag changed")
+        candidates = [(config["tag"], resolved)]
+    elif track == "devel":
         candidates = [("devel", api("commits/devel")["sha"])]
     else:
         candidates = ((r["tag_name"], resolve_ref(r["tag_name"])[0]) for r in stable_releases())
@@ -134,11 +152,9 @@ if __name__ == "__main__":
     if args.command == "plan":
         plan(os.environ["TRACK"])
     else:
-        config, _ = contract()
+        config = tracked_config()
         config.update(engine_sha=match(SHA, os.environ["ENGINE_SHA"]), tag=os.environ["TRACK_TAG"])
         if args.command == "archive":
             archive(config)
         else:
-            # This credential-free checkout is disposable. Preserve the measured plan in each stage digest.
-            write_json(CONFIG, config)
-            measure(Path("upstream").resolve(), Path("work").resolve(), args.command)
+            measure(Path("upstream").resolve(), Path("work").resolve(), args.command, config)
