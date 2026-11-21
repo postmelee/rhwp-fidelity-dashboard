@@ -5,9 +5,10 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
-from corpus_inventory import RECEIPT, REV, inventory
+from corpus_inventory import ORACLE, RECEIPT, REV, inventory
 from core import write_json
 
 
@@ -31,12 +32,13 @@ def main(repo, output):
     sha = subprocess.check_output(["git", "-C", repo, "rev-parse", "HEAD"], text=True).strip()
     if sha != REV or subprocess.check_output(["git", "-C", repo, "status", "--porcelain"]):
         raise ValueError("A clean, complete pinned corpus checkout is required")
+    sys.path.insert(0, str(repo / ORACLE))
+    from audit_print_pairs import audit
+    from oracle_resolver import build_manifest
+    manifest = build_manifest(repo)
+    audit_result = audit(repo, manifest, json.loads((repo / RECEIPT).read_bytes()))
     with tempfile.TemporaryDirectory() as temp:
         rows, summary = inventory(repo, Path(temp))
-        from audit_print_pairs import audit
-        from oracle_resolver import build_manifest
-        manifest = build_manifest(repo)
-        audit_result = audit(repo, manifest, json.loads((repo / RECEIPT).read_bytes()))
     pairs = defaultdict(list)
     for pair in audit_result["pairs"]:
         pairs[pair["sample"]].append(pair)
