@@ -523,7 +523,7 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
                       + studio_screen_evidence(out)),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
-        "history": pr_panel + cohort_panel + history_view(records, observations),
+        "history": pr_panel + '<p><a href="pr-9024.html">Historical PR #9024 · 763 paired HWPX pages</a></p>' + cohort_panel + history_view(records, observations),
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
             + (run_link(next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1]))
