@@ -97,22 +97,14 @@ def main():
             raise ValueError("Published browser evidence differs from the verified producer")
         # Rebuild the candidate projection with the fixed corpus tree, independent of Pages.
         from preview_presentation import transition_scope
-        from corpus_inventory import ROOTS, REV
-        root_tree = api("git/trees/" + REV)
-        def entries(parts):
-            tree = root_tree
-            for part in parts:
-                entry, = [e for e in tree["tree"] if e["path"] == part]
-                tree = api("git/trees/" + entry["sha"] + ("?recursive=1" if part == parts[-1] else ""))
-                assert not tree.get("truncated")
-            return tree["tree"]
-        paths = []
-        for root in ROOTS:
-            for entry in entries(root.split("/")):
-                if entry["type"] != "blob" or not entry["path"].lower().endswith((".hwp", ".hwpx")):
-                    continue
-                path = root + "/" + entry["path"]
-                paths.append({"path_sha256": sha(path.encode()), "blob": entry["sha"], "receipt_verified": False})
+        from corpus_inventory import REV, sources
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = Path(temporary)
+            subprocess.run(["git", "init", "-q", checkout], check=True)
+            subprocess.run(["git", "-C", checkout, "fetch", "-q", "--depth=1", "--filter=blob:none",
+                            "https://github.com/" + REPO + ".git", REV], check=True, timeout=120)
+            paths = [{"path_sha256": sha(path.encode()), "blob": oid, "receipt_verified": False}
+                     for path, (oid, mode) in sources(checkout).items()]
         assert len(paths) == len({r["path_sha256"] for r in paths}) == 3800
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
