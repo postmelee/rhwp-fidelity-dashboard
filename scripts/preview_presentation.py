@@ -21,7 +21,7 @@ TABS = (
 esc = html.escape
 
 
-def table(title, headers, rows, *, cards=False):
+def table(title, headers, rows, *, cards=False, row_ids=None):
     head = "".join(
         f'<th scope="col"><button type="button" class="sort" hidden>{esc(h)}</button>'
         f'<span>{esc(h)}</span></th>' for h in headers
@@ -36,8 +36,9 @@ def table(title, headers, rows, *, cards=False):
         return f'<td data-label="{esc(h)}">{content}</td>'
 
     body = "".join(
-        '<tr>' + ''.join(value_cell(h, value) for h, value in zip(headers, row)) + '</tr>'
-        for row in rows
+        (f'<tr id="{esc(row_ids[index])}">' if row_ids is not None else '<tr>') +
+        ''.join(value_cell(h, value) for h, value in zip(headers, row)) + '</tr>'
+        for index, row in enumerate(rows)
     )
     if not body:
         body = f'<tr><td colspan="{len(headers)}">No rows</td></tr>'
@@ -464,7 +465,7 @@ def studio_screen_evidence(out):
             + transition_scope(out, report))
 
 
-def render_site(out, records, docs, inventory, cohort_panel=""):
+def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
         from datetime import datetime, timezone
@@ -482,11 +483,11 @@ def render_site(out, records, docs, inventory, cohort_panel=""):
     historical_pr_pages(out)
     panes = {
         "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
-        "renderers": (cohort_panel + studio_screen_evidence(out) + run_views(groups, docs, "compare", renderer_tables) +
+        "renderers": (pr_panel + cohort_panel + studio_screen_evidence(out) + run_views(groups, docs, "compare", renderer_tables) +
                       '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
-        "history": cohort_panel + history_view(records, observations),
+        "history": pr_panel + cohort_panel + history_view(records, observations),
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
             + (run_link(next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1]))

@@ -38,11 +38,11 @@ def summarize(record):
             "pages": details}
 
 
-def page(title, body, script=""):
+def page(title, body, script="", *, section="documents", section_label="Documents & pages"):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)}</title>
 <link rel="stylesheet" href="dashboard.css">{script}</head><body><main>
-<a href="index.html#documents">Documents &amp; pages</a><h1>{esc(title)}</h1>{body}</main></body></html>"""
+<a href="index.html#{esc(section)}">{esc(section_label)}</a><h1>{esc(title)}</h1>{body}</main></body></html>"""
 
 
 def family_table(record, config, details):
@@ -100,27 +100,32 @@ def build(folder, out, inventory):
         stats = table("Page-weighted silhouette (%)", ["Renderer", "Measured pages", "Median", "P10", "Minimum", "Below 90", "Page count mismatches"],
                       [[label, x["measured_pages"], shown(x["median"]), shown(x["p10"]), shown(x["min"]),
                         x["below90"], x["page_count_mismatch"]] for label, x in zip(("Native Skia", "WASM Canvas2D"), (summary["by_backend"][b] for b in BACKENDS))], cards=True)
+        links = "".join(
+            f'<p>{esc(stage)} · Reused from {esc(s["tag"])} · '
+            f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{s["run_id"]}/attempts/{s["attempt"]}">'
+            f'original run {s["run_id"]}, attempt {s["attempt"]}</a></p>'
+            for stage, s in record.get("stage_sources", {}).items())
         tag = esc(record["tag"])
-        body = (f'<p>Release {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
+        body = (f'<p>{("Development branch" if tag == "devel" else "Release")} {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
                 f'<p>Paired documents {summary["paired_docs"]}/{len(record["docs"])} · '
                 f'Paired pages {summary["paired_pages"]}/{len(rows)}. Matching page counts required for score differences.</p>'
                 f'<p><a href="{name}">Numeric record and producer hashes</a> · '
                 f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{record["run_id"]}/attempts/{record["attempt"]}">Measurement run</a> · '
                 f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a></p>'
                 '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
-                stats + family_table(record, config, summary["pages"]) +
+                links + stats + family_table(record, config, summary["pages"]) +
                 '<label>Find a document <input type="search" id="query"></label> '
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
                 '<label><input type="checkbox" id="native-lower"> Native Skia scores below Canvas2D</label> '
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
                 '<option value="page">Document and page</option></select></label><p id="count" aria-live="polite"></p>' + caption)
-        (out / ("cohort-" + run_key + ".html")).write_text(page("Release measurement · " + tag, body,
+        (out / ("cohort-" + run_key + ".html")).write_text(page("Print measurement · " + tag, body,
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
     (out / "cohort.js").write_bytes((Path(__file__).with_name("site") / "cohort.js").read_bytes())
     (out / "receipt-status.js").write_bytes((Path(__file__).with_name("site") / "receipt-status.js").read_bytes())
     write_json(out / "cohort-runs.json", archive)
-    overview = ('<h3>Receipt-backed release measurements</h3>'
+    overview = ('<h3>Receipt-backed measurements</h3>'
                 f'<p>Target · {esc(config["tag"])} · {len(docs)} documents · {sum(d["pages"] for d in docs)} reference pages</p>')
     for r in reversed(archive):
         key = f'{r["run_id"]}-{r["attempt"]}'

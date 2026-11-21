@@ -284,7 +284,9 @@ class BoundaryTests(unittest.TestCase):
         plan = pipeline.make_plan("v0.9.0", pipeline.ROOT / "corpus", ("1"*40, "stable-release"))
         old = dict(plan, adapter_sha256=pipeline.LEGACY_ADAPTER)
         changed = dict(plan, adapter_sha256="0"*64)
-        self.assertEqual(pipeline.identity(old), pipeline.identity(plan))
+        baseline = dict(plan, adapter_sha256=pipeline.SCOPED_BASELINE)
+        self.assertEqual(pipeline.identity(old), pipeline.identity(baseline))
+        self.assertNotEqual(pipeline.identity(old), pipeline.identity(plan))
         self.assertNotEqual(pipeline.identity(old), pipeline.identity(changed))
     def test_four_pair_manifest_is_metadata_only(self):
         catalog = core.manifest(pipeline.ROOT/"corpus",verify=False)

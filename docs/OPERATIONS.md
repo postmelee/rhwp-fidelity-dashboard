@@ -30,6 +30,19 @@ Native release와 fresh WASM release의 cold build가 대부분의 시간을 차
 
 [검증 이력](VERIFICATION.md) · [자동화 설계와 재시도 정책](ARCHITECTURE.md) · [문서 목록](README.md)
 
+## Upstream PR 증적 재현
+
+[대시보드 이슈 #1](https://github.com/postmelee/rhwp-fidelity-dashboard/issues/1)과 [upstream 이슈 #9242](https://github.com/edwardkim/rhwp/issues/9242)의 첫 수집 범위는 [Render Diff run 44925877031 attempt 1](https://github.com/edwardkim/rhwp/actions/runs/44925877031/attempts/1)의 artifact 14716643303입니다. 저장한 ZIP과 원본 증적 commit이 있는 upstream checkout으로 숫자 원장을 재현할 수 있습니다. 두 명령은 JSON을 표준출력에 씁니다.
+
+```sh
+python3 scripts/pr_evidence.py "$ARTIFACT_ZIP" | cmp - corpus/pr-evidence/render-diff-44925877031-1.json
+python3 scripts/check_pr_9024.py --upstream "$UPSTREAM_CHECKOUT" | cmp - corpus/pr-evidence/visual-sweep-9024.json
+```
+
+Render Diff는 ZIP 해시 검증 후 Canvas·PDF 결과 JSON과 빌드·브라우저 소비 영수증을 읽습니다. CI에서 확인한 1쪽 범위와 이미지 크기 결과를 표시합니다. 문서 전체 쪽수, base 측정 및 독립 한컴 Print는 해당 artifact에서 미확인입니다. WASM 패키지의 해시와 브라우저에서 수신한 WASM 해시를 대조할 수 있으며 PDF용 Native CLI의 실행 경로는 workflow에 기록되어 있습니다. Native CLI 바이트 해시는 공개 영수증에서 미확인입니다.
+
+별도 [PR #9024의 Visual Sweep](https://github.com/edwardkim/rhwp/pull/9024)은 같은 HWPX와 독립 한컴 Print PDF를 사용한 Native 및 WASM의 base/head 결과입니다. 비교 TSV의 raw 수치를 해시가 확인된 두 쪽 원본 TSV의 표시 정밀도와 대조합니다. 동일 backend·입력·참조·DPI·compat·래스터 및 글꼴 조건의 공통 쪽에서만 차이를 표시합니다. 두 검증 harness의 스크립트 변경은 결과 이미지의 범례 글꼴 선택에 국한됩니다.
+
 ## Print 영수증 묶음의 릴리즈 측정
 
 `corpus/receipt-cohort.json`은 엔진 커밋, 원본 인벤토리 커밋, 영수증 SHA-256과 각 원본·PDF의 바이트 및 쪽수를 고정합니다. upstream은 이 묶음을 공개 검증 입력 34종·46쪽으로 설명합니다. [검증 입력의 용도](https://github.com/edwardkim/rhwp/blob/2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0/mydocs/pr/assets/hyunmyungjanelee_20261112/README.md)

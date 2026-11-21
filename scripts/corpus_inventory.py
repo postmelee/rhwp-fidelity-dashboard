@@ -15,6 +15,7 @@ FIXTURES = "tests/fixtures/"
 SCOPE = "scripts/regression_document_scope.py"
 ORACLE = "tools/oracle_public/"
 SOURCE_FILES = (
+    FIXTURES + "transferred_exam_regressions.txt", FIXTURES + "deferred_document_regressions.txt",
     SCOPE, ORACLE + "audit_print_pairs.py", ORACLE + "oracle_resolver.py",
     FIXTURES + "deferred_regression_documents.txt",
     FIXTURES + "deferred_visual_regression_inputs.tsv",
@@ -44,6 +45,36 @@ def sources(repo):
     return files
 
 
+def classify(row, pairs, unmatched):
+    states = {pair["status"] for pair in pairs}
+    if "verified" in states:
+        return "verified"
+    if "mismatch" in states or "unavailable" in states:
+        return "review_invalid_receipt"
+    if "candidate" in states:
+        return "review_candidate"
+    if any("oracle" in rule["axes"] for rule in row["visual_deferrals"]):
+        return "deferred_oracle"
+    if row["path"] in unmatched:
+        return "needs_print_review"
+    return "outside_resolver_scope"
+
+
+def resolver_names(repo, scratch, files):
+    # This pinned resolver discovers candidates using paths alone. The audit below
+    # reads the original Git bytes for every path named in a Print receipt.
+    from oracle_resolver import build_manifest
+    paths = [p for p in files if p.startswith("samples/")]
+    paths.extend(p.decode() for p in git(repo, "ls-tree", "-rz", "--name-only", REV, "--", "pdf").split(b"\0")
+                 if p.lower().endswith(b".pdf"))
+    for name in paths:
+        path = scratch / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.touch()
+    return build_manifest(scratch)
+
+
 def inventory(repo, scratch):
     files = sources(repo)
     receipt_bytes = blob(repo, RECEIPT)
@@ -68,6 +99,12 @@ def inventory(repo, scratch):
     by_source = defaultdict(list)
     for pair in audited["pairs"]:
         by_source[pair["sample"]].append({"pdf": pair["pdf"], "status": pair["status"]})
+    candidates = resolver_names(repo, scratch, files)
+    queue = audit_print_pairs.audit(scratch, candidates, receipts)
+    all_pairs = defaultdict(list)
+    for pair in queue["pairs"]:
+        all_pairs[pair["sample"]].append(pair)
+    unmatched = {entry["sample"] for entry in candidates["unmatched"]}
     if by_source.keys() - files.keys():
         raise ValueError("Receipt references a source outside the pinned inventory")
 
@@ -98,6 +135,8 @@ def inventory(repo, scratch):
                      "general_regression_deferred": is_deferred_regression_input(path),
                      "visual_deferrals": axes[path], "page_count_baseline": path in baseline,
                      "resolver_scope": resolver, "receipt_pairs": by_source.get(path, [])})
+    for row in rows:
+        row["oracle_state"] = classify(row, all_pairs[row["path"]], unmatched)
     summary = {"source_revision": REV, "source_paths": len(rows), "unique_blobs": len(counts),
                "by_root": roots, "receipt_file": RECEIPT,
                "receipt_sha256": hashlib.sha256(receipt_bytes).hexdigest(),

@@ -9,14 +9,14 @@
 
 측정 producer fingerprint는 core, adapter 및 Fidelity의 measure job 정의를 해시합니다. 사이트, Pages 배포, 릴리즈 선택 변경은 측정 identity에 영향을 주지 않습니다. 한 개의 검증된 기존 fingerprint는 해당 producer 내용과 동일한 새 fingerprint로 선택 단계에서만 해석합니다. 예전 JSON의 fingerprint와 시도 수는 보존됩니다.
 
-외부 저장소 release/workflow_run 이벤트가 이 저장소로 직접 온다고 가정하지 않습니다. PR artifact 수집은 구현하지 않았으며 devel push마다 renderer CI가 있다고 가정하지 않습니다.
+안정 릴리즈 예약 측정과 별도로 `corpus/pr-evidence/`에 검토한 upstream PR 증적을 보존합니다. 첫 Render Diff 가져오기는 run/job/attempt와 ZIP의 GitHub SHA-256을 고정합니다. 원본 JSON의 판정과 빌드·브라우저 소비 영수증을 읽고, 파일 경로와 SHA-256을 숫자 원장에 남깁니다. 증적은 렌더러 비교와 실행 이력에서 열 수 있습니다. 릴리즈 선택과 cohort 집계의 입력은 기존 릴리즈 원장입니다.
 
 
 ## 보안
 
 Actions commit SHA pin, checkout `persist-credentials:false`, 최소 job 권한과 분리된 Pages OIDC를 사용합니다. ref를 환경변수로 전달하고 shell에 삽입하지 않습니다. tag chain, 경로 이탈/symlink, 고정 asset origin과 hash, asset당 최대 32MiB와 결과 JSON 최대 8MB, 타입·범위·NaN, 중복/누락 페이지 및 public field whitelist를 검사합니다. data branch를 코드로 checkout하거나 실행하지 않습니다.
 
-upstream의 현재 contributor gate 결과를 새 측정으로 복사하지 않습니다. 이 dashboard의 producer와 실제 실행 결과만 사용합니다. 기존 자료는 새 Hancom 인쇄 없이 재사용합니다. 전체 workflow 취소 또는 publisher 인프라 장애는 실측 성공으로 표시하지 않습니다.
+upstream contributor gate 결과에는 원래 PR, 측정 범위와 조건을 표시합니다. 릴리즈 측정에는 이 dashboard의 producer와 실제 실행 결과를 사용합니다. 기존 Print 자료는 새 한컴 인쇄 없이 재사용합니다. 전체 workflow 취소 또는 publisher 인프라 장애는 실측 성공으로 표시하지 않습니다.
 
 
 [운영](OPERATIONS.md) · [측정 방법](METHODOLOGY.md) · [문서 목록](README.md)
