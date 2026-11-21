@@ -404,6 +404,67 @@ def historical_pr_pages(out):
 """, encoding="utf-8")
 
 
+def transition_scope(out, report):
+    corpus = out / "corpus-index.json"
+    if not corpus.is_file():
+        return ""
+    inventory = json.loads(corpus.read_bytes())
+    by_blob = {}
+    checks = {r["sampleId"]: r for r in report["readiness"]}
+    for row in report["rows"]:
+        if row["backend"] == "canvaskit-default":
+            identity = row["comparisonIdentity"]
+            sample = identity["sampleId"]
+            by_blob.setdefault(report["input_blobs"][sample], []).append({
+                "sample": sample, "page": identity["page"] + 1, "profile": identity["profile"],
+                "active_backend": checks[sample]["activeBackend"], "surface": checks[sample]["surfaceBackend"],
+                "passed": checks[sample]["passed"]})
+    rows = []
+    for path in inventory["rows"]:
+        screen = by_blob.get(path["blob"], [])
+        blockers = ["no_same_revision_canvaskit_print_comparison", "no_studio_edit_save_reopen_evidence"]
+        if not screen:
+            blockers.append("no_screen_capture_for_input")
+        elif not all(r["passed"] for r in screen):
+            blockers.append("studio_readiness_gate_failed")
+        else:
+            blockers.append("screen_evidence_limited_to_listed_pages")
+        if not path["receipt_verified"]:
+            blockers.append("no_verified_print_pair_in_audited_receipts")
+        rows.append({"path_sha256": path["path_sha256"], "blob": path["blob"], "screen": screen,
+                     "blockers": blockers})
+    payload = {"engine_sha": report["source_sha"], "tree": report["tree"], "corpus_sha": inventory["source_revision"],
+               "run": report["run"], "job": report["job"], "attempt": report["attempt"], "rows": rows}
+    (out / "canvaskit-scope.json").write_text(json.dumps(payload, separators=(",", ":")))
+    observed = sum(bool(row["screen"]) for row in rows)
+    return (f'<p>At this revision, {observed:,} of {len(rows):,} inventory paths match tested input bytes. '
+            '<a href="canvaskit-scope.json">Per-path tested pages and outstanding transition checks</a></p>')
+
+
+def studio_screen_evidence(out):
+    report = json.loads((SITE / "studio-screen.json").read_text())
+    observed = {row["comparisonIdentity"]["sampleId"]: row for row in report["rows"]
+                if row["backend"] == "canvaskit-default"}
+    rows = []
+    for check in report["readiness"]:
+        sample = check["sampleId"]
+        row = observed[sample]
+        timings = row["timings"]
+        rows.append([sample, row["comparisonIdentity"]["page"] + 1,
+                     row["comparisonIdentity"]["backend"], check["surfaceBackend"],
+                     check["backendFallbackReason"] or check["surfaceFallbackReason"] or "None recorded",
+                     f'{timings["documentLoadAndInitialRenderMs"]:.1f}',
+                     f'{timings["warmReplayMs"]:.1f}', "Pass" if check["passed"] else ", ".join(check["blockers"])])
+    source = f'https://github.com/edwardkim/rhwp/actions/runs/{report["run"]}/job/{report["job"]}'
+    return ('<h3>Studio browser checks · screen</h3>'
+            f'<p>devel <code>{report["source_sha"][:12]}</code> · {esc(report["browser"])} · '
+            'first page of eight representative documents. Editing, saving and round-trip behavior have no coverage in this report.</p>'
+            + table("CanvasKit observed in Studio", ["Document", "Page", "Backend", "Surface", "Fallback",
+                    "Cold load and render (ms)", "Warm replay (ms)", "Readiness budget"], rows, cards=True)
+            + f'<p><a href="{source}">Producer job</a> · <a href="studio-screen.json">Canvas2D and CanvasKit capture records</a></p>'
+            + transition_scope(out, report))
+
+
 def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
@@ -422,7 +483,7 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
     historical_pr_pages(out)
     panes = {
         "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
-        "renderers": (pr_panel + cohort_panel + run_views(groups, docs, "compare", renderer_tables) +
+        "renderers": (pr_panel + cohort_panel + studio_screen_evidence(out) + run_views(groups, docs, "compare", renderer_tables) +
                       '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
@@ -456,5 +517,5 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
 </body>
 </html>
 """, encoding="utf-8")
-    for asset in ("dashboard.css", "dashboard.js"):
+    for asset in ("dashboard.css", "dashboard.js", "studio-screen.json"):
         (out / asset).write_bytes((SITE / asset).read_bytes())
