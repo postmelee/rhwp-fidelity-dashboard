@@ -3,6 +3,7 @@ import argparse
 import fcntl
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -60,10 +61,20 @@ def completed(saved, identity, docs):
     )
 
 
-def run(repo, folder, budget, limit, engine=None):
+def run(repo, folder, budget, limit, engine=None, local_corpus=None):
     import pypdfium2
-    config, docs = contract()
-    verify_receipt(config)
+    if local_corpus is None:
+        config, docs = contract()
+        verify_receipt(config)
+    else:
+        if not engine:
+            raise ValueError("Local Print batches require an explicit engine SHA")
+        docs = manifest(local_corpus, verify=False)["documents"]
+        intake = read_json(local_corpus / "intake.json")
+        admitted = {r["path_sha256"] for r in intake["rows"] if r["status"] == "verified"}
+        if not docs or admitted != {d["id"] for d in docs}:
+            raise ValueError("Verified intake membership differs from measurement batch")
+        config = {"engine_sha": engine, "intake_sha256": digest(canonical(intake)), "documents": docs}
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     if sha != (engine or config["engine_sha"]):
         raise ValueError("Checkout must match the receipt cohort engine revision")
@@ -85,6 +96,13 @@ def run(repo, folder, budget, limit, engine=None):
         save(marker, initial)
         write_json(root / "plan.json", plan)
         corpus = root / "corpus"
+        if local_corpus is not None:
+            for doc in docs:
+                for asset in (doc["document"], doc["golden"]):
+                    target = corpus / asset["path"]
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if not target.is_file() or digest(target.read_bytes()) != asset["sha256"]:
+                        shutil.copyfile(local_corpus / asset["path"], target)
         adapter.materialize(corpus, docs)
         for doc in docs:
             with pypdfium2.PdfDocument(str(corpus / doc["golden"]["path"])) as pdf:
@@ -126,10 +144,11 @@ if __name__ == "__main__":
     parser.add_argument("upstream", type=Path)
     parser.add_argument("work", type=Path)
     parser.add_argument("--engine-sha", help="Exact target engine SHA (defaults to the cohort release)")
+    parser.add_argument("--local-corpus", type=Path, help="Directory prepared by local_print_intake.py")
     parser.add_argument("--pages-per-shard", type=int, default=8)
     parser.add_argument("--max-new-shards", type=int)
     args = parser.parse_args()
     if args.max_new_shards is not None and args.max_new_shards < 0:
         parser.error("max-new-shards must be nonnegative")
-    done = run(args.upstream.resolve(), args.work.resolve(), args.pages_per_shard, args.max_new_shards, args.engine_sha)
+    done = run(args.upstream.resolve(), args.work.resolve(), args.pages_per_shard, args.max_new_shards, args.engine_sha, args.local_corpus)
     raise SystemExit(0 if done else 2)
