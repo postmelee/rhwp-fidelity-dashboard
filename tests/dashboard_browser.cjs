@@ -17,6 +17,9 @@ async function test(browser) {
     const page = await browser.newPage({viewport: {width: 360, height: 800}});
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
+    await page.route("https://api.github.com/**/track-cohort.yml/runs?*", route => route.fulfill({
+        json: {workflow_runs: []}
+    }));
     await page.route("https://api.github.com/**/receipt-cohort.yml/runs?*", route => route.fulfill({
         json: {workflow_runs: [{id: 123, run_attempt: 2, status: "in_progress", conclusion: null,
             head_repository: {full_name: "postmelee/rhwp-fidelity-dashboard"}}]}

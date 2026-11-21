@@ -101,7 +101,7 @@ def build(folder, out, inventory):
                       [[label, x["measured_pages"], shown(x["median"]), shown(x["p10"]), shown(x["min"]),
                         x["below90"], x["page_count_mismatch"]] for label, x in zip(("Native Skia", "WASM Canvas2D"), (summary["by_backend"][b] for b in BACKENDS))], cards=True)
         tag = esc(record["tag"])
-        body = (f'<p>Release {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
+        body = (f'<p>{("Development branch" if tag == "devel" else "Release")} {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
                 f'<p>Paired documents {summary["paired_docs"]}/{len(record["docs"])} · '
                 f'Paired pages {summary["paired_pages"]}/{len(rows)}. Matching page counts required for score differences.</p>'
                 f'<p><a href="{name}">Numeric record and producer hashes</a> · '
@@ -113,13 +113,13 @@ def build(folder, out, inventory):
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
                 '<option value="page">Document and page</option></select></label><p id="count" aria-live="polite"></p>' + caption)
-        (out / ("cohort-" + run_key + ".html")).write_text(page("Release measurement · " + tag, body,
+        (out / ("cohort-" + run_key + ".html")).write_text(page("Print measurement · " + tag, body,
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
     (out / "cohort.js").write_bytes((Path(__file__).with_name("site") / "cohort.js").read_bytes())
     (out / "receipt-status.js").write_bytes((Path(__file__).with_name("site") / "receipt-status.js").read_bytes())
     write_json(out / "cohort-runs.json", archive)
-    overview = ('<h3>Receipt-backed release measurements</h3>'
+    overview = ('<h3>Receipt-backed measurements</h3>'
                 f'<p>Target · {esc(config["tag"])} · {len(docs)} documents · {sum(d["pages"] for d in docs)} reference pages</p>')
     for r in reversed(archive):
         key = f'{r["run_id"]}-{r["attempt"]}'
