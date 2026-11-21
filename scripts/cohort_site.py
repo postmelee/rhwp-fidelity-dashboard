@@ -111,6 +111,7 @@ def build(folder, out, inventory):
                 stats + family_table(record, config, summary["pages"]) +
                 '<label>Find a document <input type="search" id="query"></label> '
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
+                '<label><input type="checkbox" id="native-lower"> Native Skia scores below Canvas2D</label> '
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
                 '<option value="page">Document and page</option></select></label><p id="count" aria-live="polite"></p>' + caption)
         (out / ("cohort-" + run_key + ".html")).write_text(page("Release measurement · " + tag, body,

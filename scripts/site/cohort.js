@@ -2,6 +2,7 @@
 const table = document.querySelector("main .scroll:last-child table");
 const search = document.getElementById("query");
 const problems = document.getElementById("problems");
+const nativeLower = document.getElementById("native-lower");
 function filterPages() {
     let shown = 0;
     for (const row of table.tBodies[0].rows) {
@@ -9,7 +10,7 @@ function filterPages() {
         const incomplete = row.cells[6].textContent !== "complete / complete" ||
             new Set(counts).size > 1 || counts.includes("?");
         row.hidden = !row.cells[0].textContent.includes(search.value.trim().toLowerCase()) ||
-            (problems.checked && !incomplete);
+            (problems.checked && !incomplete) || (nativeLower.checked && !(Number(row.cells[4].textContent) < 0));
         if (!row.hidden) shown++;
     }
     document.getElementById("count").textContent = shown + " reference pages shown";
@@ -28,5 +29,6 @@ function sortRows() {
 }
 order.addEventListener("change", sortRows);
 search.addEventListener("input", filterPages);
+nativeLower.addEventListener("change", filterPages);
 problems.addEventListener("change", filterPages);
 filterPages();
