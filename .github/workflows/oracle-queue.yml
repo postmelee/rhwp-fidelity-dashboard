@@ -1,0 +1,28 @@
+name: Verify oracle queue
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['scripts/oracle_queue.py', '.github/workflows/oracle-queue.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: upstream
+          repository: edwardkim/rhwp
+          ref: 2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0
+          persist-credentials: false
+      - run: python3 dashboard/scripts/oracle_queue.py upstream queue.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: oracle-queue
+          path: queue.json
+          retention-days: 14
