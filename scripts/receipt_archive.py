@@ -35,8 +35,9 @@ def validate_stage(row, docs, stage, expected):
 
 
 def validate_archive(value):
-    exact(value, "schema_version tag cohort_sha256 corpus_sha receipt_sha256 engine_sha docs run_id attempt producer_sha protocol stages")
-    if value["schema_version"] != 1 or value["protocol"] != PROTOCOL:
+    fields = "schema_version tag cohort_sha256 corpus_sha receipt_sha256 engine_sha docs run_id attempt producer_sha protocol stages"
+    exact(value, fields + (" stage_sources" if value.get("schema_version") == 2 else ""))
+    if value["schema_version"] not in (1, 2) or value["protocol"] != PROTOCOL:
         raise ValueError("Unsupported receipt report")
     match(KEY, value["tag"].replace(".", "-"))
     for key in ("cohort_sha256", "receipt_sha256"):
@@ -60,8 +61,24 @@ def validate_archive(value):
     if not isinstance(value["stages"], dict) or set(value["stages"]) - set(STAGES):
         raise ValueError("Unexpected cohort stage")
     expected = {k: value[k] for k in ("run_id", "attempt", "producer_sha", "engine_sha", "cohort_sha256", "protocol")}
+    sources = value.get("stage_sources", {})
+    if not isinstance(sources, dict) or set(sources) - set(value["stages"]):
+        raise ValueError("Invalid release stage sources")
     for stage, row in value["stages"].items():
-        validate_stage(row, docs[:1] if stage == "pilot" else docs[1:], stage, expected)
+        producer = expected.copy()
+        if stage in sources:
+            source = sources[stage]
+            exact(source, "run_id attempt tag producer_sha cohort_sha256 stage_sha256 scope_sha256")
+            integer(source["run_id"], 10**16)
+            integer(source["attempt"], 10**6)
+            match(KEY, source["tag"].replace(".", "-"))
+            match(SHA, source["producer_sha"])
+            for k in ("cohort_sha256", "scope_sha256", "stage_sha256"):
+                match(HASH, source[k])
+            if source["stage_sha256"] != digest(canonical(row)):
+                raise ValueError("Linked measurement digest mismatch")
+            producer.update({k: source[k] for k in ("run_id", "attempt", "producer_sha", "cohort_sha256")})
+        validate_stage(row, docs[:1] if stage == "pilot" else docs[1:], stage, producer)
     return value
 
 

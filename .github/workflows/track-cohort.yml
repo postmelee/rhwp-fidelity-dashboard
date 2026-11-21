@@ -1,0 +1,129 @@
+name: Track receipt cohort
+on:
+  schedule:
+    - cron: '23 */4 * * *'
+    - cron: '47 1 * * *'
+  pull_request:
+    paths: ['scripts/track_cohort.py', '.github/workflows/track-cohort.yml']
+  workflow_dispatch:
+    inputs:
+      track:
+        type: choice
+        options: [devel, stable]
+        default: devel
+        description: Upstream track
+      retry_devel:
+        type: boolean
+        default: false
+        description: Retry an incomplete measurement at the current devel SHA
+permissions:
+  contents: read
+concurrency:
+  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+  cancel-in-progress: false
+jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        track: [devel, stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TRACK: ${{ matrix.track }}
+        run: python3 scripts/track_cohort.py plan
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      tag: ${{ steps.plan.outputs.tag }}
+      pilot: ${{ steps.plan.outputs.measure_pilot }}
+      expanded: ${{ steps.plan.outputs.measure_expanded }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETRY_DEVEL: ${{ inputs.retry_devel }}
+          TRACK: ${{ inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+        run: python3 scripts/track_cohort.py plan
+  measure:
+    needs: plan
+    if: needs.plan.outputs.sha != '' && (needs.plan.outputs.pilot == 'true' || needs.plan.outputs.expanded == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      ENGINE_SHA: ${{ needs.plan.outputs.sha }}
+      TRACK_TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: edwardkim/rhwp
+          ref: ${{ needs.plan.outputs.sha }}
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install measurement toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
+          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack --version 0.15.0 --locked
+      - name: Measure two-page pilot with both renderers
+        if: needs.plan.outputs.pilot == 'true'
+        run: python3 dashboard/scripts/track_cohort.py pilot
+      - name: Measure remaining receipt pairs with both renderers
+        if: needs.plan.outputs.expanded == 'true'
+        run: python3 dashboard/scripts/track_cohort.py expanded
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: track-cohort-numeric-${{ github.run_attempt }}
+          path: work/numeric/*.json
+          if-no-files-found: warn
+          retention-days: 14
+  archive:
+    needs: [plan, measure]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.sha != ''
+    runs-on: ubuntu-24.04
+    concurrency: fidelity-ledger
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.measure.result != 'skipped'
+        continue-on-error: true
+        with:
+          name: track-cohort-numeric-${{ github.run_attempt }}
+          path: incoming
+      - env:
+          ENGINE_SHA: ${{ needs.plan.outputs.sha }}
+          TRACK_TAG: ${{ needs.plan.outputs.tag }}
+          MEASURE_RESULT: ${{ needs.measure.result }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/track_cohort.py archive
+  publish:
+    needs: archive
+    if: always() && needs.archive.result == 'success'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
