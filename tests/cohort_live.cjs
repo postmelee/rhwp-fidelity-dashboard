@@ -20,7 +20,9 @@ async function run() {
             const observed = Object.values(values).find(row => row.status === "Paired");
             if (observed) {
                 await page.locator("#query").fill(observed.id);
-                const row = page.getByRole("row").filter({has: page.getByRole("cell", {name: observed.id, exact: true})});
+                await page.getByText("1–1 of 1", {exact: true}).waitFor();
+                const row = page.locator("tbody tr");
+                assert.equal(await row.locator("td").first().textContent(), observed.id);
                 assert.equal(await row.locator("td").nth(5).innerText(), observed.page_median_percent.native.toFixed(5));
                 assert.equal(await row.locator("td").nth(6).innerText(), observed.page_median_percent.wasm.toFixed(5));
             }
