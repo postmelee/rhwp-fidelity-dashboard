@@ -38,11 +38,11 @@ def summarize(record):
             "pages": details}
 
 
-def page(title, body, script=""):
+def page(title, body, script="", *, section="documents", section_label="Documents & pages"):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)}</title>
 <link rel="stylesheet" href="dashboard.css">{script}</head><body><main>
-<a href="index.html#documents">Documents &amp; pages</a><h1>{esc(title)}</h1>{body}</main></body></html>"""
+<a href="index.html#{esc(section)}">{esc(section_label)}</a><h1>{esc(title)}</h1>{body}</main></body></html>"""
 
 
 def family_table(record, config, details):
