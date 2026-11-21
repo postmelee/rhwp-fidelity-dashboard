@@ -25,12 +25,18 @@ def partitions(documents, pages):
         yield shard
 
 
-def build_identity(repo):
-    files = {"native": "target/release/rhwp", "wasm": "pkg/rhwp_bg.wasm", "javascript": "pkg/rhwp.js",
-             "cargo_lock": "Cargo.lock", "npm_lock": "rhwp-studio/package-lock.json"}
-    if not all((repo / p).is_file() for p in files.values()):
-        return None
-    return digest(canonical({name: digest((repo / p).read_bytes()) for name, p in files.items()}))
+def check_sources(repo, allow_generated=False):
+    paths = subprocess.check_output(["git", "diff", "--name-only", "-z", "HEAD", "--"], cwd=repo)
+    for raw in filter(None, paths.split(b"\0")):
+        name = os.fsdecode(raw)
+        generated = {"rhwp-studio/public/rhwp.js": "pkg/rhwp.js",
+                     "rhwp-studio/public/rhwp_bg.wasm": "pkg/rhwp_bg.wasm"}
+        if not allow_generated or name not in generated:
+            raise ValueError("Unexpected tracked source change: " + name)
+        mirror, original = repo / name, repo / generated[name]
+        if (not mirror.is_file() or mirror.is_symlink() or not original.is_file()
+                or original.is_symlink() or digest(mirror.read_bytes()) != digest(original.read_bytes())):
+            raise ValueError("Generated Studio mirror differs from built package: " + name)
 
 
 def save(path, value):
@@ -61,7 +67,6 @@ def run(repo, folder, budget, limit, engine=None):
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     if sha != (engine or config["engine_sha"]):
         raise ValueError("Checkout must match the receipt cohort engine revision")
-    subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=repo, check=True)
     # Checkpoints are local to a runner boot and an exact adapter/upstream contract.
     code = digest(canonical({f: digest(Path(__file__).with_name(f).read_bytes())
                              for f in ("adapter.py", "core.py", "receipt_cohort.py", "cohort_shards.py")}))
@@ -73,6 +78,7 @@ def run(repo, folder, budget, limit, engine=None):
     root.mkdir(parents=True, exist_ok=True)
     with (root / "run.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        check_sources(repo, allow_generated=any(root.glob("shard-*.json")))
         write_json(root / "plan.json", plan)
         corpus = root / "corpus"
         adapter.materialize(corpus, docs)
@@ -83,24 +89,28 @@ def run(repo, folder, budget, limit, engine=None):
         env = adapter.inventory(corpus / "cache/fonts")
         state = ["pending"] * len(groups)
         executed = 0
+        prepared = None
         for i, group in enumerate(groups):
             write_json(corpus / "manifest.json", {"schema_version": 1, "documents": group})
             manifest(corpus)
             checkpoint = root / f"shard-{i}.json"
             def identity():
-                build = build_identity(repo)
+                build = adapter.build_identity(repo)
                 return {"build": build, "environment": env, "boot": boot,
                         "inputs": digest(canonical(group)), "plan": digest(canonical(plan))} if build else None
             if completed(read_json(checkpoint) if checkpoint.exists() else None, identity(), group):
                 state[i] = "reused"
+                prepared = adapter.build_identity(repo)
             elif limit is None or executed < limit:
                 with tempfile.TemporaryDirectory(dir=root) as work:
-                    result = adapter.run(repo, corpus, Path(work) / "result.json", sha)
+                    check_sources(repo, allow_generated=prepared is not None or checkpoint.exists())
+                    result = adapter.run(repo, corpus, Path(work) / "result.json", sha, prepared_build=prepared)
                     validate_measurement(result, group)
                     record = {"identity": identity(), "measurement": result,
                               "measurement_sha256": digest(canonical(result))}
                     save(checkpoint, record)
                     state[i] = "executed" if completed(record, record["identity"], group) else "incomplete"
+                prepared = record["identity"]["build"] if state[i] == "executed" else None
                 executed += 1
             save(root / "status.json", {"plan_sha256": digest(canonical(plan)), "shards": state})
         print(root, state)
