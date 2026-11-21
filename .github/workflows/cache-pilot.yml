@@ -1,0 +1,32 @@
+name: Stage cache pilot
+on:
+  pull_request:
+    paths: ['scripts/cache_pilot.py', '.github/workflows/cache-pilot.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: upstream
+          repository: edwardkim/rhwp
+          ref: 2480af27df441ffd199cc24602afddbd2d13dcfe
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
+          python -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          cd upstream
+          cargo build --release --locked --bin rhwp --features native-skia
+      - run: python dashboard/scripts/cache_pilot.py upstream
