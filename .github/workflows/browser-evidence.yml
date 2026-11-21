@@ -1,7 +1,7 @@
 name: Verify Studio browser evidence
 on:
   pull_request:
-    paths: ['scripts/check_browser_evidence.py', '.github/workflows/browser-evidence.yml']
+    paths: ['scripts/site/studio-screen.json', 'scripts/check_browser_evidence.py', '.github/workflows/browser-evidence.yml']
   workflow_dispatch:
 permissions:
   contents: read

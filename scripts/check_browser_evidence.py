@@ -2,7 +2,7 @@
 import hashlib
 import io
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 import subprocess
 from urllib.parse import quote
 from urllib.request import urlopen
@@ -79,14 +79,18 @@ def main():
         gate = report["canvaskitReadinessGate"]
         checks = {r["sampleId"]: r for r in gate["checks"]}
         assert len(checks) == len(gate["checks"]) and set(checks) == set(samples)
-        print("BROWSER_EVIDENCE " + json.dumps({
+        evidence = {
             "run": RUN, "attempt": ATTEMPT, "job": JOB, "tree": TREE, "source_sha": SHA,
             "archive_sha256": DIGEST, "build": build["artifacts"], "studio_checks": gates["checks"],
             "browser": report["browserVersion"], "summary": gate["summary"], "rows": rows,
             "readiness": [{k: r[k] for k in ("sampleId", "passed", "blockers", "activeBackend",
                 "backendFallbackReason", "surfaceBackend", "surfaceFallbackReason", "performanceBudget")}
                 for r in checks.values()]
-        }, sort_keys=True))
+        }
+        snapshot = Path(__file__).with_name("site") / "studio-screen.json"
+        if evidence != json.loads(snapshot.read_bytes()):
+            raise ValueError("Published browser evidence differs from the verified producer")
+        print("BROWSER_EVIDENCE " + json.dumps(evidence, sort_keys=True))
 
 
 if __name__ == "__main__":
