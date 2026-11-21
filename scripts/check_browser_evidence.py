@@ -36,7 +36,7 @@ def source(path):
 def main():
     run = api(f"actions/runs/{RUN}/attempts/{ATTEMPT}")
     assert (run["event"], run["head_branch"], run["head_sha"], run["path"], run["conclusion"]) == (
-        "push", "devel", SHA, ".github/workflows/ci.yml", "success")
+        "workflow_dispatch", "devel", SHA, ".github/workflows/ci.yml", "success")
     assert api("git/commits/" + SHA)["tree"]["sha"] == TREE
     job = api(f"actions/jobs/{JOB}")
     assert (job["run_id"], job["run_attempt"], job["name"], job["conclusion"]) == (
