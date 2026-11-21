@@ -1,0 +1,507 @@
+{
+  "archive_sha256": "53f1713bac59e465e70b3463fa0ca379ce9409c6a43e65c5afc0ee16b53700d5",
+  "attempt": 1,
+  "browser": "Chrome/152.0.7946.0",
+  "build": {
+    "rhwp.js": {
+      "bytes": 587539,
+      "sha256": "75eaf7070854c66d31b2223558a4128d05d00dff46b51051ec943cfe250c6365"
+    },
+    "rhwp_bg.wasm": {
+      "bytes": 27882066,
+      "sha256": "e2e56dfd387ffee5b0995d23e4a0086001407f12a045820eb61bd6a506c9abc1"
+    }
+  },
+  "job": 134684787521,
+  "readiness": [
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "paragraph-line-basic",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "paragraph-text-marks",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "pua-special-glyphs",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "font-batang-hancom",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "font-native-bitmap",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "table-core",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "table-border-style",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    },
+    {
+      "activeBackend": "canvaskit",
+      "backendFallbackReason": null,
+      "blockers": [],
+      "passed": true,
+      "performanceBudget": {
+        "maxColdDocumentLoadAndInitialRenderMs": 30000,
+        "maxImageCachePixels": 67108864,
+        "maxWarmRendererDurationMs": 4000,
+        "maxWarmReplayMs": 5000
+      },
+      "sampleId": "image-crop",
+      "surfaceBackend": "default",
+      "surfaceFallbackReason": null
+    }
+  ],
+  "rows": [
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:86e607233a2218928fabe5969155116a46d4ab4400db1402fe45b0082149496c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "paragraph-line-basic",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2847.729953,
+        "documentLoadAndInitialRenderMs": 165,
+        "screenshotMs": 75.42613799999981,
+        "selectedPageRenderMs": 76.5318269999998,
+        "totalMs": 4691.47868,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:86e607233a2218928fabe5969155116a46d4ab4400db1402fe45b0082149496c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "paragraph-line-basic",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2709.8921850000006,
+        "documentLoadAndInitialRenderMs": 438.30000000004657,
+        "screenshotMs": 94.49598399999923,
+        "selectedPageRenderMs": 151.16693899999882,
+        "totalMs": 5308.302624000001,
+        "warmRendererDurationMs": 33.89999999990687,
+        "warmReplayMs": 35.10000000009313
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:0066108df04204324c0802414087563e7673e30f3d142dd014af14e318153d2c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "paragraph-text-marks",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2033.3576030000004,
+        "documentLoadAndInitialRenderMs": 142.5999999998603,
+        "screenshotMs": 74.53977599999962,
+        "selectedPageRenderMs": 65.05186899999899,
+        "totalMs": 3905.6646309999996,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:0066108df04204324c0802414087563e7673e30f3d142dd014af14e318153d2c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "paragraph-text-marks",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2552.798767000002,
+        "documentLoadAndInitialRenderMs": 467.19999999995343,
+        "screenshotMs": 119.15417299999899,
+        "selectedPageRenderMs": 298.4310779999978,
+        "totalMs": 5284.383026000001,
+        "warmRendererDurationMs": 114.60000000009313,
+        "warmReplayMs": 117.5
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:592e00e3e8bc72afef829fd71a13cbc340bff3770425b9d1ee025afc1e1649fa",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "pua-special-glyphs",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2074.333203000002,
+        "documentLoadAndInitialRenderMs": 73,
+        "screenshotMs": 70.33868599999914,
+        "selectedPageRenderMs": 53.12817100000029,
+        "totalMs": 3794.399168,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:592e00e3e8bc72afef829fd71a13cbc340bff3770425b9d1ee025afc1e1649fa",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "pua-special-glyphs",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2514.4808080000003,
+        "documentLoadAndInitialRenderMs": 888.2999999998137,
+        "screenshotMs": 106.7233750000014,
+        "selectedPageRenderMs": 437.67333599999984,
+        "totalMs": 5687.352737000001,
+        "warmRendererDurationMs": 172.80000000004657,
+        "warmReplayMs": 177.30000000004657
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:99ec0cd2f55ba45493b97c550333db6d0275831ae6150a041bdbe5e2bd174049",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "font-batang-hancom",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2052.306504,
+        "documentLoadAndInitialRenderMs": 129.10000000009313,
+        "screenshotMs": 63.83505399999558,
+        "selectedPageRenderMs": 42.79851100000087,
+        "totalMs": 3805.6120610000035,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:99ec0cd2f55ba45493b97c550333db6d0275831ae6150a041bdbe5e2bd174049",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "font-batang-hancom",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2460.217749999996,
+        "documentLoadAndInitialRenderMs": 809.1000000000931,
+        "screenshotMs": 102.43090200000006,
+        "selectedPageRenderMs": 145.10393699999986,
+        "totalMs": 5102.605334,
+        "warmRendererDurationMs": 27.5,
+        "warmReplayMs": 28.199999999953434
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:1c902d41d47e532f42d2b24a44058efd370ee6496927c32e76e955029a0b9eec",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "font-native-bitmap",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2044.7127619999956,
+        "documentLoadAndInitialRenderMs": 68.79999999981374,
+        "screenshotMs": 64.40857099999994,
+        "selectedPageRenderMs": 35.19141600000148,
+        "totalMs": 3730.825064000004,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:1c902d41d47e532f42d2b24a44058efd370ee6496927c32e76e955029a0b9eec",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "font-native-bitmap",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2456.707724,
+        "documentLoadAndInitialRenderMs": 67.5,
+        "screenshotMs": 84.84718399999838,
+        "selectedPageRenderMs": 96.6494010000024,
+        "totalMs": 4268.617649,
+        "warmRendererDurationMs": 12.5,
+        "warmReplayMs": 12.899999999906868
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:dc3e57d7577447ae4b47f59bdb0f499a5ac29066b62af8a650bcdd8d70eee32a",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "table-core",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2013.461304000004,
+        "documentLoadAndInitialRenderMs": 397,
+        "screenshotMs": 73.82801599999948,
+        "selectedPageRenderMs": 74.7168559999991,
+        "totalMs": 4140.544151000002,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:dc3e57d7577447ae4b47f59bdb0f499a5ac29066b62af8a650bcdd8d70eee32a",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "table-core",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2553.494085999999,
+        "documentLoadAndInitialRenderMs": 1233.9000000001397,
+        "screenshotMs": 108.87330400000064,
+        "selectedPageRenderMs": 278.27164900000207,
+        "totalMs": 6031.896489999999,
+        "warmRendererDurationMs": 106.80000000004657,
+        "warmReplayMs": 109.10000000009313
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:451ab7c40d47c4200e98b57b7cb3806e64968c32fa9441fc171e7babf64be915",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "table-border-style",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2024.3187359999938,
+        "documentLoadAndInitialRenderMs": 119.5,
+        "screenshotMs": 71.36950200000138,
+        "selectedPageRenderMs": 55.229185999996844,
+        "totalMs": 3832.1431250000023,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:451ab7c40d47c4200e98b57b7cb3806e64968c32fa9441fc171e7babf64be915",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "table-border-style",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2479.817225000006,
+        "documentLoadAndInitialRenderMs": 309.0999999998603,
+        "screenshotMs": 126.798063000002,
+        "selectedPageRenderMs": 435.6653660000011,
+        "totalMs": 5106.142942999999,
+        "warmRendererDurationMs": 154.4000000001397,
+        "warmReplayMs": 158.80000000004657
+      }
+    },
+    {
+      "backend": "canvas2d",
+      "comparisonIdentity": {
+        "backend": "canvas2d",
+        "documentDigest": "sha256:3b5afbe4cdb18faa49452a9cbed770d5caa27aed2f83b708e9ab8516c65ebf4c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "image-crop",
+        "schemaVersion": 1,
+        "surface": "canvas2d"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2047.9483170000021,
+        "documentLoadAndInitialRenderMs": 71.69999999995343,
+        "screenshotMs": 73.06919900000503,
+        "selectedPageRenderMs": 31.9919949999894,
+        "totalMs": 3745.309135999996,
+        "warmRendererDurationMs": null,
+        "warmReplayMs": null
+      }
+    },
+    {
+      "backend": "canvaskit-default",
+      "comparisonIdentity": {
+        "backend": "canvaskit-default",
+        "documentDigest": "sha256:3b5afbe4cdb18faa49452a9cbed770d5caa27aed2f83b708e9ab8516c65ebf4c",
+        "page": 0,
+        "profile": "screen",
+        "sampleId": "image-crop",
+        "schemaVersion": 1,
+        "surface": "default"
+      },
+      "fontFallback": null,
+      "timings": {
+        "appLoadMs": 2532.543755000006,
+        "documentLoadAndInitialRenderMs": 639.6000000000931,
+        "screenshotMs": 103.0366459999932,
+        "selectedPageRenderMs": 120.2474499999953,
+        "totalMs": 4982.886272999996,
+        "warmRendererDurationMs": 29,
+        "warmReplayMs": 34.5999999998603
+      }
+    }
+  ],
+  "run": 44270213909,
+  "source_sha": "08b38c12a75fa5cabfe5fbbfde9388aceb3fcca3",
+  "studio_checks": [
+    "canvas-font-alias-issue9077.test.mjs",
+    "canvas-render-diff.test.mjs",
+    "renderer-baseline.mjs"
+  ],
+  "summary": {
+    "evaluated": 8,
+    "failed": 0,
+    "missing": 0,
+    "passed": 8,
+    "total": 8
+  },
+  "tree": "fd066bb4f6db75e02176ed5e5e2f98372f0c895d"
+}

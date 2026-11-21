@@ -403,6 +403,29 @@ def historical_pr_pages(out):
 """, encoding="utf-8")
 
 
+def studio_screen_evidence():
+    report = json.loads((SITE / "studio-screen.json").read_text())
+    observed = {row["comparisonIdentity"]["sampleId"]: row for row in report["rows"]
+                if row["backend"] == "canvaskit-default"}
+    rows = []
+    for check in report["readiness"]:
+        sample = check["sampleId"]
+        row = observed[sample]
+        timings = row["timings"]
+        rows.append([sample, row["comparisonIdentity"]["page"] + 1,
+                     row["comparisonIdentity"]["backend"], check["surfaceBackend"],
+                     check["backendFallbackReason"] or check["surfaceFallbackReason"] or "None recorded",
+                     f'{timings["documentLoadAndInitialRenderMs"]:.1f}',
+                     f'{timings["warmReplayMs"]:.1f}', "Pass" if check["passed"] else ", ".join(check["blockers"])])
+    source = f'https://github.com/edwardkim/rhwp/actions/runs/{report["run"]}/job/{report["job"]}'
+    return ('<h3>Studio browser checks · screen</h3>'
+            f'<p>devel <code>{report["source_sha"][:12]}</code> · {esc(report["browser"])} · '
+            'first page of eight representative documents. Editing, saving and round-trip behavior have no coverage in this report.</p>'
+            + table("CanvasKit observed in Studio", ["Document", "Page", "Backend", "Surface", "Fallback",
+                    "Cold load and render (ms)", "Warm replay (ms)", "Readiness budget"], rows, cards=True)
+            + f'<p><a href="{source}">Producer job</a> · <a href="studio-screen.json">Canvas2D and CanvasKit capture records</a></p>')
+
+
 def render_site(out, records, docs, inventory, cohort_panel=""):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
@@ -421,7 +444,7 @@ def render_site(out, records, docs, inventory, cohort_panel=""):
     historical_pr_pages(out)
     panes = {
         "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
-        "renderers": (cohort_panel + run_views(groups, docs, "compare", renderer_tables) +
+        "renderers": (cohort_panel + studio_screen_evidence() + run_views(groups, docs, "compare", renderer_tables) +
                       '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
@@ -455,5 +478,5 @@ def render_site(out, records, docs, inventory, cohort_panel=""):
 </body>
 </html>
 """, encoding="utf-8")
-    for asset in ("dashboard.css", "dashboard.js"):
+    for asset in ("dashboard.css", "dashboard.js", "studio-screen.json"):
         (out / asset).write_bytes((SITE / asset).read_bytes())
