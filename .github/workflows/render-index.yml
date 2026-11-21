@@ -5,7 +5,7 @@ on:
       run_id:
         description: Upstream Render Diff run
         required: true
-        default: '44942420688'
+        default: '44946084496'
       attempt:
         description: Run attempt
         required: true
@@ -15,7 +15,7 @@ on:
         required: true
         default: '9300'
   pull_request:
-    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml', 'corpus/pr-evidence/render-diff-44942420688-1.json']
+    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml', 'corpus/pr-evidence/render-diff-44946084496-1.json']
 permissions:
   contents: read
   actions: read
@@ -30,7 +30,7 @@ jobs:
       - name: Verify producer archives and derive page records
         env:
           GH_TOKEN: ${{ github.token }}
-          UPSTREAM_RUN: ${{ inputs.run_id || '44942420688' }}
+          UPSTREAM_RUN: ${{ inputs.run_id || '44946084496' }}
           UPSTREAM_ATTEMPT: ${{ inputs.attempt || '1' }}
           UPSTREAM_PR: ${{ inputs.pr || '9300' }}
         run: |

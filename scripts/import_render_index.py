@@ -101,6 +101,11 @@ def collect(run, attempt, pr):
               "source_tree_sha": commit["tree"]["sha"], "fixture_root": root, "fixture_blobs": blobs,
               "artifact_id": prod["id"], "artifact_name": prod["name"], "artifact_sha256": digest(archive),
               "index_artifact_id": idx["id"], "index_sha256": digest(raw), "measured_at": job["completed_at"]}
+    pull = api(f"pulls/{pr}")
+    if pull.get("merged") and pull["head"]["sha"] == head:
+        merged = match(SHA, pull["merge_commit_sha"])
+        origin["merge_sha"] = merged
+        origin["merge_tree_sha"] = match(SHA, api("git/commits/" + merged)["tree"]["sha"])
     report = import_archive(archive, origin)
     report["build"]["executables"]["target/debug/rhwp"].update(sha256=native_sha, source=native_path)
     for track, key in (("canvas", "canvas"), ("browser_pdf", "browser"), ("direct_pdf", "direct")):
