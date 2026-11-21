@@ -132,7 +132,7 @@ async function test(browser) {
     assert.match(await page.locator("#document-" + failedRun).innerText(), /unavailable/);
     assert.deepEqual(errors, []);
 
-    await page.goto(base + "#renderers");
+    await page.goto(base + "#history");
     await page.getByRole("link", {name: /Historical PR #9024/}).click();
     const pageRows = page.locator("tbody tr");
     assert.equal(await pageRows.count(), 763);

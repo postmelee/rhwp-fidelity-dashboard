@@ -27,7 +27,7 @@ async function start() {
         for (const r of rows.slice(offset, offset + 50)) {
             const tr = body.insertRow();
             const axes = r.visual_deferrals.flatMap(x => x.axes.map(axis => axis + " #" + x.issue)).join(", ");
-            const fields = [r.id || r.path_sha256.slice(0, 16), r.root, r.format, r.paths_with_same_blob, r.status, r.oracle_state.replaceAll("_", " "), r.resolver_scope, axes || "—"];
+            const fields = [r.id || r.path_sha256.slice(0, 16), r.root, r.format, r.paths_with_same_blob, r.status, ...["native", "wasm"].map(b => r.page_median_percent[b]?.toFixed(5) ?? "Unmeasured"), r.oracle_state.replaceAll("_", " "), r.resolver_scope, axes || "—"];
             fields.forEach((value, i) => {
                 const cell = tr.insertCell();
                 cell.dataset.label = labels[i];

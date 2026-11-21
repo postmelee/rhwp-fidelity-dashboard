@@ -465,6 +465,34 @@ def studio_screen_evidence(out):
             + transition_scope(out, report))
 
 
+def corpus_measurement_panel(out, inventory, groups):
+    counts = inventory["source_paths"]
+    ledger = out / "cohort-runs.json"
+    runs = json.loads(ledger.read_bytes()) if ledger.is_file() else []
+    sections = []
+    for sha, tag, _ in groups:
+        run = next((r for r in reversed(runs) if r["engine_sha"] == sha and r["tag"] == tag), None)
+        paired = run["paired_docs"] if run else 0
+        pct = 100 * paired / counts if counts else 0
+        rows = []
+        for backend, title in (("native", "Native Skia"), ("wasm", "WASM Canvas2D")):
+            values = run["by_backend"][backend] if run else {}
+            def score(key):
+                value = values.get(key)
+                return f"{value:.5f}" if value is not None else "Unmeasured"
+            rows.append([title, values.get("measured_pages", 0), score("median"), score("p10"), score("min")])
+        rows.extend([[path, 0, "Unmeasured", "Unmeasured", "Unmeasured"]
+                     for path in ("WASM CanvasKit", "Render IR output")])
+        link = (f'<p><a href="cohort-{run["run_id"]}-{run["attempt"]}.html">Document and page scores</a></p>'
+                if run else "")
+        sections.append(f'<section data-release="{sha}" data-preferred="true"><h3>Hancom Print fidelity · {esc(tag)}</h3>'
+                        f'<p><strong>{pct:.2f}% measured</strong> · {paired:,} of {counts:,} corpus paths paired · '
+                        f'{counts - paired:,} without a paired result for this revision</p>'
+                        + table("Scores on measured pages · 96 DPI silhouette", ["Output path", "Scored pages",
+                                "Median (%)", "P10 (%)", "Minimum (%)"], rows, cards=True) + link + '</section>')
+    return "".join(sections)
+
+
 def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
     snapshot = json.loads((SITE / "evidence.json").read_text())
     if os.environ.get("REFRESH_RELEASE") == "1":
@@ -480,14 +508,22 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
             print("Release lookup unavailable; displaying dated observation.")
     observations = {(e["run_id"], e["attempt"]): e for e in snapshot["attempts"]}
     groups = release_groups(records, snapshot["release"])
+    cohort_file = out / "cohort-runs.json"
+    if cohort_file.is_file():
+        known = {sha for sha, _, _ in groups}
+        for run in reversed(json.loads(cohort_file.read_bytes())):
+            if run["engine_sha"] not in known:
+                groups.append((run["engine_sha"], run["tag"], []))
+                known.add(run["engine_sha"])
+    whole = corpus_measurement_panel(out, inventory, groups)
     historical_pr_pages(out)
     panes = {
-        "overview": inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
-        "renderers": (pr_panel + cohort_panel + studio_screen_evidence(out) + run_views(groups, docs, "compare", renderer_tables) +
-                      '<p><a href="pr-9024.html">Historical PR #9024 · HWPX · 763 paired pages</a></p>'),
+        "overview": whole + inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
+        "renderers": (whole + '<h3>Smoke regression · four-document suite</h3>' + run_views(groups, docs, "compare", renderer_tables)
+                      + studio_screen_evidence(out)),
         "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
-        "history": pr_panel + cohort_panel + history_view(records, observations),
+        "history": pr_panel + '<p><a href="pr-9024.html">Historical PR #9024 · 763 paired HWPX pages</a></p>' + cohort_panel + history_view(records, observations),
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
             + (run_link(next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1]))
