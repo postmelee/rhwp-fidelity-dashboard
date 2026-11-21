@@ -20,9 +20,27 @@ jobs:
           repository: edwardkim/rhwp
           ref: 2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0
           persist-credentials: false
-      - run: python3 dashboard/scripts/oracle_queue.py upstream queue.json
+      - run: python3 dashboard/scripts/oracle_queue.py upstream queue.json --worklist worklist.json
+      - name: Check full path accounting and oracle work items
+        run: |
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          report = json.loads(Path("worklist.json").read_bytes())
+          tasks = report["tasks"]
+          assert len(tasks) == len({row["path"] for row in tasks}) == 3800
+          assert len({row["source_blob"] for row in tasks}) == report["unique_blobs"] == 3651
+          assert Counter(row["oracle_state"] for row in tasks) == report["states"]
+          assert all(len(row["source_sha256"]) == 64 for row in tasks)
+          assert all(any(p["audit_status"] == "verified" for p in row["pdf_candidates"])
+                     for row in tasks if row["oracle_state"] == "verified")
+          print(report["states"])
+          PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: oracle-queue
-          path: queue.json
+          path: |
+            queue.json
+            worklist.json
           retention-days: 14

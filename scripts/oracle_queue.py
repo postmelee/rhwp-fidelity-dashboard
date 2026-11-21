@@ -44,7 +44,38 @@ def additional_receipts(repo, audit):
     return bundles, extra
 
 
-def main(repo, output):
+def worklist(repo, rows, pairs, additional):
+    """Attach the pinned bytes and upstream candidate paths to every review task."""
+    def file_digest(path):
+        # Git blob identity is shared by byte-identical paths.
+        with (repo / path).open("rb") as stream:
+            return hashlib.file_digest(stream, "sha256").hexdigest()
+
+    by_path = defaultdict(set)
+    for source, pdf in additional:
+        by_path[source].add(pdf)
+    source_hashes = {}
+    tasks = []
+    for row in rows:
+        path = row["path"]
+        blob = row["blob"]
+        if blob not in source_hashes:
+            source_hashes[blob] = file_digest(path)
+        candidates = {p["pdf"]: p["status"] for p in pairs[path]}
+        for pdf in by_path[path]:
+            if candidates.get(pdf) in {"mismatch", "unavailable"}:
+                raise ValueError("Conflicting Print evidence for " + path)
+            candidates[pdf] = "verified"
+        tasks.append({"path": path, "source_blob": blob, "source_sha256": source_hashes[blob],
+                      "oracle_state": "verified" if "verified" in candidates.values() else row["oracle_state"],
+                      "visual_deferrals": row["visual_deferrals"],
+                      "pdf_candidates": [{"path": pdf, "audit_status": status}
+                                         for pdf, status in sorted(candidates.items())]})
+    return {"revision": REV, "paths": len(tasks), "unique_blobs": len(source_hashes),
+            "states": dict(Counter(task["oracle_state"] for task in tasks)), "tasks": tasks}
+
+
+def main(repo, output, worklist_output=None):
     repo = repo.resolve()
     sha = subprocess.check_output(["git", "-C", repo, "rev-parse", "HEAD"], text=True).strip()
     if sha != REV or subprocess.check_output(["git", "-C", repo, "status", "--porcelain"]):
@@ -82,6 +113,8 @@ def main(repo, output):
                         "paths": summary["source_paths"], "unique_blobs": summary["unique_blobs"],
                         "additional_receipts": bundles, "additional_verified_pairs": extra,
                         "states": counts, "rows": items})
+    if worklist_output:
+        write_json(worklist_output, worklist(repo, rows, pairs, extra))
     print(json.dumps(counts, sort_keys=True))
 
 
@@ -89,5 +122,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--worklist", type=Path, help="Write a path-level Print review worklist")
     args = parser.parse_args()
-    main(args.repo, args.output)
+    main(args.repo, args.output, args.worklist)
