@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
+import tempfile
 from urllib.parse import quote
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -94,6 +95,33 @@ def main():
         snapshot = Path(__file__).with_name("site") / "studio-screen.json"
         if evidence != json.loads(snapshot.read_bytes()):
             raise ValueError("Published browser evidence differs from the verified producer")
+        # Rebuild the candidate projection with the fixed corpus tree, independent of Pages.
+        from preview_presentation import transition_scope
+        from corpus_inventory import ROOTS, REV
+        root_tree = api("git/trees/" + REV)
+        def entries(parts):
+            tree = root_tree
+            for part in parts:
+                entry, = [e for e in tree["tree"] if e["path"] == part]
+                tree = api("git/trees/" + entry["sha"] + ("?recursive=1" if part == parts[-1] else ""))
+                assert not tree.get("truncated")
+            return tree["tree"]
+        paths = []
+        for root in ROOTS:
+            for entry in entries(root.split("/")):
+                if entry["type"] != "blob" or not entry["path"].lower().endswith((".hwp", ".hwpx")):
+                    continue
+                path = root + "/" + entry["path"]
+                paths.append({"path_sha256": sha(path.encode()), "blob": entry["sha"], "receipt_verified": False})
+        assert len(paths) == len({r["path_sha256"] for r in paths}) == 3800
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            (folder / "corpus-index.json").write_text(json.dumps({"source_revision": REV, "rows": paths}))
+            transition_scope(folder, evidence)
+            indexed = json.loads((folder / "canvaskit-scope.json").read_bytes())["rows"]
+            assert len(indexed) == len(paths) and all(r["blockers"] for r in indexed)
+            assert {r["blob"] for r in indexed if r["screen"]} == set(blobs.values())
+            print("CANDIDATE_SCOPE", len(indexed), "paths,", sum(bool(r["screen"]) for r in indexed), "matching paths")
         print("BROWSER_EVIDENCE " + json.dumps(evidence, sort_keys=True))
 
 
