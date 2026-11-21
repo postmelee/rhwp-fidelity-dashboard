@@ -2,7 +2,7 @@ name: Verify oracle queue
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['scripts/oracle_queue.py', '.github/workflows/oracle-queue.yml']
+    paths: ['scripts/oracle_queue.py', 'scripts/local_print_intake.py', '.github/workflows/oracle-queue.yml']
 permissions:
   contents: read
 jobs:
@@ -36,6 +36,28 @@ jobs:
           assert all(any(p["audit_status"] == "verified" for p in row["pdf_candidates"])
                      for row in tasks if row["oracle_state"] == "verified")
           print(report["states"])
+          PY
+      - name: Prepare real local Print inputs and keep a changed digest unmeasured
+        run: |
+          python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/intake-deps"
+          PYTHONPATH="dashboard/scripts:$RUNNER_TEMP/intake-deps" python3 - <<'PY'
+          from pathlib import Path
+          from local_print_intake import prepare
+          from corpus_inventory import RECEIPT
+          from core import read_json, write_json
+          repo = Path("upstream").resolve()
+          original = repo / RECEIPT
+          rows = read_json(original)["cases"][:2]
+          rows[1]["input_sha256"] = "0" * 64
+          receipt = Path("test-receipt.json")
+          write_json(receipt, {"cases": rows})
+          folder = prepare(repo, receipt, Path("intake"), RECEIPT, "2022")
+          report = read_json(folder / "intake.json")
+          assert report["verified"] == 1 and report["paths"] == 3800
+          assert sum(r["receipt_states"].get("mismatch", 0) for r in report["rows"]) == 1
+          assert prepare(repo, receipt, Path("intake"), RECEIPT, "2022") == folder
+          doc, = read_json(folder / "manifest.json")["documents"]
+          assert (folder / doc["golden"]["path"]).is_file()
           PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
