@@ -100,6 +100,11 @@ def build(folder, out, inventory):
         stats = table("Page-weighted silhouette (%)", ["Renderer", "Measured pages", "Median", "P10", "Minimum", "Below 90", "Page count mismatches"],
                       [[label, x["measured_pages"], shown(x["median"]), shown(x["p10"]), shown(x["min"]),
                         x["below90"], x["page_count_mismatch"]] for label, x in zip(("Native Skia", "WASM Canvas2D"), (summary["by_backend"][b] for b in BACKENDS))], cards=True)
+        links = "".join(
+            f'<p>{esc(stage)} · Reused from {esc(s["tag"])} · '
+            f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{s["run_id"]}/attempts/{s["attempt"]}">'
+            f'original run {s["run_id"]}, attempt {s["attempt"]}</a></p>'
+            for stage, s in record.get("stage_sources", {}).items())
         tag = esc(record["tag"])
         body = (f'<p>{("Development branch" if tag == "devel" else "Release")} {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
                 f'<p>Paired documents {summary["paired_docs"]}/{len(record["docs"])} · '
@@ -108,7 +113,7 @@ def build(folder, out, inventory):
                 f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{record["run_id"]}/attempts/{record["attempt"]}">Measurement run</a> · '
                 f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a></p>'
                 '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
-                stats + family_table(record, config, summary["pages"]) +
+                links + stats + family_table(record, config, summary["pages"]) +
                 '<label>Find a document <input type="search" id="query"></label> '
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'

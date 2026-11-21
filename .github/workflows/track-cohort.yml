@@ -42,6 +42,8 @@ jobs:
     outputs:
       sha: ${{ steps.plan.outputs.sha }}
       tag: ${{ steps.plan.outputs.tag }}
+      pilot: ${{ steps.plan.outputs.measure_pilot }}
+      expanded: ${{ steps.plan.outputs.measure_expanded }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -54,7 +56,7 @@ jobs:
         run: python3 scripts/track_cohort.py plan
   measure:
     needs: plan
-    if: needs.plan.outputs.sha != ''
+    if: needs.plan.outputs.sha != '' && (needs.plan.outputs.pilot == 'true' || needs.plan.outputs.expanded == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -82,8 +84,10 @@ jobs:
           rustup target add wasm32-unknown-unknown
           cargo install wasm-pack --version 0.15.0 --locked
       - name: Measure two-page pilot with both renderers
+        if: needs.plan.outputs.pilot == 'true'
         run: python3 dashboard/scripts/track_cohort.py pilot
       - name: Measure remaining receipt pairs with both renderers
+        if: needs.plan.outputs.expanded == 'true'
         run: python3 dashboard/scripts/track_cohort.py expanded
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
@@ -104,6 +108,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.measure.result != 'skipped'
         continue-on-error: true
         with:
           name: track-cohort-numeric-${{ github.run_attempt }}

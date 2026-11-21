@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from core import canonical, digest
-from track_cohort import select
+from track_cohort import PROTOCOL, archive_docs, release_sources, select
 
 
 class TrackTests(unittest.TestCase):
@@ -22,3 +22,37 @@ class TrackTests(unittest.TestCase):
         self.assertEqual(select([partial], [("devel", sha)], config), ("", ""))
         self.assertEqual(select([partial], [("devel", sha)], config, retry_devel=True), ("devel", sha))
         self.assertEqual(select([partial] * 3, [("devel", sha)], config), ("", ""))
+
+    def test_release_reuses_only_a_locked_stage(self):
+        config = {"tag": "v1", "engine_sha": "a" * 40, "corpus_sha": "b" * 40,
+                  "receipt_sha256": "c" * 64,
+                  "documents": [{"id": "one", "pages": 2, "input": "samples/one.hwp",
+                                 "source_sha256": "1" * 64, "pdf_sha256": "2" * 64}]}
+        docs = archive_docs(config)
+        fonts = {"native/one": "3" * 64, "wasm/one": "4" * 64}
+        backend = {"status": "complete", "documents": [{"pdf_pages": 2, "rendered_pages": 2}]}
+        stage = {"measurement": {"backends": {"native": backend, "wasm": backend},
+                                 "build_sha256": "5" * 64, "environment_sha256": "6" * 64},
+                 "artifacts": {k: {"font_supply_sha256": v} for k, v in fonts.items()}}
+        src = {**config, "tag": "devel", "docs": docs, "run_id": 7, "attempt": 1,
+               "producer_sha": "d" * 40, "protocol": PROTOCOL, "stages": {"pilot": stage},
+               "cohort_sha256": digest(canonical(dict(config, tag="devel")))}
+        scope = {"docs": docs, "backends": ["native", "wasm"], "profile": "print", "dpi": 96,
+                 "protocol": PROTOCOL, "font_supply": fonts,
+                 **{k: src[k] for k in ("engine_sha", "producer_sha", "corpus_sha", "receipt_sha256")}}
+        lock = {"run_id": 7, "attempt": 1, "scope_sha256": digest(canonical(scope)),
+                "stage_sha256": digest(canonical(stage)), "build_sha256": "5" * 64,
+                "environment_sha256": "6" * 64}
+        def resolve(change=None, target=None):
+            return release_sources(target or config, [src], {"v1": {"pilot": dict(lock, **(change or {}))}})
+        value, origin = resolve()["pilot"]
+        self.assertEqual(value, stage)
+        self.assertEqual((origin["tag"], origin["run_id"], origin["attempt"]), ("devel", 7, 1))
+        self.assertEqual(release_sources(config, [src], {}), {})
+        for field in ("scope_sha256", "stage_sha256", "build_sha256", "environment_sha256", "attempt"):
+            with self.subTest(field=field):
+                self.assertEqual(resolve({field: 0}), {})
+        self.assertEqual(resolve(target=dict(config, engine_sha="f" * 40)), {})
+        self.assertEqual(resolve(target=dict(config, documents=[dict(config["documents"][0], pages=1)])), {})
+        stage["artifacts"]["native/one"]["font_supply_sha256"] = None
+        self.assertEqual(resolve(), {})
