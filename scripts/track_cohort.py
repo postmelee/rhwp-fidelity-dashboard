@@ -14,6 +14,7 @@ def select(previous, candidates, config, retry_devel=False):
     for record in previous:
         key = (record["tag"], record["engine_sha"], record["cohort_sha256"])
         attempts.setdefault(key, []).append(record)
+    retry = None
     for name, sha in candidates:
         match(KEY, name.replace(".", "-"))
         target = dict(config, tag=name, engine_sha=match(SHA, sha))
@@ -27,9 +28,11 @@ def select(previous, candidates, config, retry_devel=False):
         )
         if name == "devel" and records and not retry_devel:
             continue
-        if not complete and len(records) < 3:
+        if not records:
             return name, sha
-    return "", ""
+        if not complete and len(records) < 3 and retry is None:
+            retry = name, sha
+    return retry or ("", "")
 
 
 def archive_docs(config):

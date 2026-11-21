@@ -121,6 +121,7 @@ jobs:
         run: python3 scripts/track_cohort.py archive
   publish:
     needs: archive
+    if: always() && needs.archive.result == 'success'
     permissions:
       contents: read
       pages: write

@@ -21,6 +21,8 @@ class TrackTests(unittest.TestCase):
         partial = dict(record, stages={})
         self.assertEqual(select([partial], [("devel", sha)], config), ("", ""))
         self.assertEqual(select([partial], [("devel", sha)], config, retry_devel=True), ("devel", sha))
+        stable = dict(partial, tag="v1", cohort_sha256=digest(canonical(dict(config, tag="v1", engine_sha=sha))))
+        self.assertEqual(select([stable], [("v1", sha), ("v2", newest)], config), ("v2", newest))
         self.assertEqual(select([partial] * 3, [("devel", sha)], config), ("", ""))
 
     def test_release_reuses_only_a_locked_stage(self):
