@@ -15,7 +15,7 @@ on:
         required: true
         default: '9300'
   pull_request:
-    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml']
+    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml', 'corpus/pr-evidence/render-diff-44942420688-1.json']
 permissions:
   contents: read
   actions: read
