@@ -60,13 +60,21 @@ def verify_registered(config):
         with urllib.request.urlopen(base + path, timeout=60) as response:
             return json.load(response)
     registry = {d["sample"]: d for d in fetch(config["registry"])["references"]}
-    sources = {path: fetch(path) for path in {d["reference_evidence"] for d in extra}}
+    sources = {path: fetch(path) for path in {d.get("measurement_evidence", d["reference_evidence"]) for d in extra}}
     for doc in extra:
         ref = registry[doc["input"]]
         keys = ("source_sha256", "pdf_sha256", "pdf", "pages")
         if (any(ref[k] != doc[k] for k in keys) or ref["provenance"] != "desktop_hancom_print"
                 or ref["evidence"] != doc["reference_evidence"]):
             raise ValueError("Registered Print reference differs from measured scope")
+        if "measurement_evidence" in doc:
+            measured = [r for r in sources[doc["measurement_evidence"]]["results"]
+                        if r["input"] == doc["input"] and r["reference_pdf"] == doc["pdf"]]
+            if ({r["backend"] for r in measured} != {"native", "wasm"} or len(measured) != 2
+                    or any((r["input_sha256"], r["pdf_sha256"], r["pages"], r["profile"]) !=
+                           (doc["source_sha256"], doc["pdf_sha256"], doc["pages"], "print") for r in measured)):
+                raise ValueError("Historical Print measurement disagrees with registered inputs")
+            continue
         audit = [r for r in sources[ref["evidence"]] if r["hwp"] == doc["input"] and r["pdf"] == doc["pdf"]]
         if (len(audit) != 1 or audit[0]["input_sha256"] != doc["source_sha256"]
                 or audit[0]["pdf_sha256"] != doc["pdf_sha256"] or audit[0]["input_matches_issue"] is not True
