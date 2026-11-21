@@ -126,7 +126,15 @@ def materialize(root, documents):
             finally:
                 font.close()
 
-def run(upstream, corpus, destination, expected_sha):
+def build_identity(repo):
+    files = {"native": "target/release/rhwp", "wasm": "pkg/rhwp_bg.wasm", "javascript": "pkg/rhwp.js",
+             "cargo_lock": "Cargo.lock", "npm_lock": "rhwp-studio/package-lock.json"}
+    if not all((repo / p).is_file() for p in files.values()):
+        return None
+    return digest(canonical({name: digest((repo / p).read_bytes()) for name, p in files.items()}))
+
+
+def run(upstream, corpus, destination, expected_sha, prepared_build=None):
     upstream, corpus, destination = map(lambda p: Path(p).resolve(), (upstream, corpus, destination))
     documents = manifest(corpus, verify=False)["documents"]
     result = {"schema_version": 1, "environment_sha256": None, "build_sha256": None,
@@ -164,8 +172,12 @@ def run(upstream, corpus, destination, expected_sha):
             ["sh", "scripts/wasm-pack-locked.sh", "--target", "web", "--release"],
             ["npm", "ci", "--prefix", "rhwp-studio"],
         ]
+        reuse = prepared_build is not None and build_identity(upstream) == prepared_build
         for i, args in enumerate(builds):
             stage = ("native-build", "wasm-build", "browser-dependencies")[i]
+            if reuse and i < 2:
+                print("Producer stage reused: " + stage + " build_sha256=" + prepared_build, flush=True)
+                continue
             started = time.monotonic()
             print("Producer stage started: " + stage, flush=True)
             log = work/f"build-{i}.log"
@@ -180,12 +192,9 @@ def run(upstream, corpus, destination, expected_sha):
             raise ValueError("runtime CLI contract failed")
         binary = upstream/"target/release/rhwp"
         package = upstream/"pkg"
-        result["build_sha256"] = digest(canonical({
-            name: digest(path.read_bytes()) for name, path in {
-                "native": binary, "wasm": package/"rhwp_bg.wasm", "javascript": package/"rhwp.js",
-                "cargo_lock": upstream/"Cargo.lock",
-                "npm_lock": upstream/"rhwp-studio/package-lock.json",
-            }.items()}))
+        result["build_sha256"] = build_identity(upstream)
+        if not result["build_sha256"] or (reuse and result["build_sha256"] != prepared_build):
+            raise ValueError("Built output changed before measurement")
         result["environment_sha256"] = inventory(corpus/"cache/fonts")
         for backend in BACKENDS:
             rows, codes = [], []
