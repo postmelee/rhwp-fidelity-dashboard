@@ -1,0 +1,53 @@
+name: Verify indexed Render Diff
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Upstream Render Diff run
+        required: true
+        default: '44942420688'
+      attempt:
+        description: Run attempt
+        required: true
+        default: '1'
+      pr:
+        description: Upstream pull request
+        required: true
+        default: '9300'
+  pull_request:
+    paths: ['scripts/import_render_index.py', '.github/workflows/render-index.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify producer archives and derive page records
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_RUN: ${{ inputs.run_id || '44942420688' }}
+          UPSTREAM_ATTEMPT: ${{ inputs.attempt || '1' }}
+          UPSTREAM_PR: ${{ inputs.pr || '9300' }}
+        run: |
+          python3 scripts/import_render_index.py "$UPSTREAM_RUN" "$UPSTREAM_ATTEMPT" "$UPSTREAM_PR" record.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          record = json.loads(Path("record.json").read_text())
+          print(json.dumps({k: len(v["pages"]) for k, v in record["tracks"].items()}))
+          expected = Path("corpus/pr-evidence") / f'render-diff-{record["origin"]["run_id"]}-{record["origin"]["attempt"]}.json'
+          if expected.exists() and record != json.loads(expected.read_bytes()):
+              raise ValueError("Published report differs from audited source")
+          for key, value in record.items():
+              print("RECORD_FIELD " + json.dumps([key, value], separators=(",", ":")))
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: indexed-render-diff
+          path: record.json
+          retention-days: 14
