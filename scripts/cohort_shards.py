@@ -78,7 +78,11 @@ def run(repo, folder, budget, limit, engine=None):
     root.mkdir(parents=True, exist_ok=True)
     with (root / "run.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        check_sources(repo, allow_generated=any(root.glob("shard-*.json")))
+        marker = root / "checkout.json"
+        initial = {"engine_sha": sha, "boot": boot, "plan": digest(canonical(plan))}
+        resumed = marker.is_file() and read_json(marker) == initial
+        check_sources(repo, allow_generated=resumed)
+        save(marker, initial)
         write_json(root / "plan.json", plan)
         corpus = root / "corpus"
         adapter.materialize(corpus, docs)
@@ -103,7 +107,7 @@ def run(repo, folder, budget, limit, engine=None):
                 prepared = adapter.build_identity(repo)
             elif limit is None or executed < limit:
                 with tempfile.TemporaryDirectory(dir=root) as work:
-                    check_sources(repo, allow_generated=prepared is not None or checkpoint.exists())
+                    check_sources(repo, allow_generated=resumed or executed > 0)
                     result = adapter.run(repo, corpus, Path(work) / "result.json", sha, prepared_build=prepared)
                     validate_measurement(result, group)
                     record = {"identity": identity(), "measurement": result,
