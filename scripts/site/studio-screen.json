@@ -503,5 +503,15 @@
     "passed": 8,
     "total": 8
   },
-  "tree": "fd066bb4f6db75e02176ed5e5e2f98372f0c895d"
+  "tree": "fd066bb4f6db75e02176ed5e5e2f98372f0c895d",
+  "input_blobs": {
+    "paragraph-line-basic": "60ea1eb947d4d6df2f1514cb73d586dfa40f8278",
+    "paragraph-text-marks": "424ee4bc3ad05e6862759a33167786b0005a76fd",
+    "pua-special-glyphs": "f079ddcef1e70f7dec5b9bf7a50b0612ea0acf35",
+    "font-batang-hancom": "fb43247b6d6b083d211eac58e2aa29e2cea84197",
+    "font-native-bitmap": "8a6f61e55ce83f79d6bb8760a2ab4a25dcdf197b",
+    "table-core": "3bbd81f0d82de3763e914a11c4aaf3871da87e0b",
+    "table-border-style": "b4b002fadb3eb3bed90053305c86f35e281b5c06",
+    "image-crop": "2ae41567f46adfdecebab27b327500f76b74c4e1"
+  }
 }

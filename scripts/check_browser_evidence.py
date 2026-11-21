@@ -58,7 +58,10 @@ def main():
         samples = {s["id"]: s for s in json.loads(source("scripts/renderer_baseline_manifest.json"))["samples"]
                    if s.get("canvaskitReadinessGate")}
         expected = {(key, s["page"], b) for key, s in samples.items() for b in ("canvas2d", "canvaskit-default")}
-        hashes = {key: "sha256:" + sha(source("samples/" + s["file"])) for key, s in samples.items()}
+        inputs = {key: source("samples/" + s["file"]) for key, s in samples.items()}
+        hashes = {key: "sha256:" + sha(data) for key, data in inputs.items()}
+        blobs = {key: hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+                 for key, data in inputs.items()}
         seen = set()
         rows = []
         for row in report["results"]:
@@ -83,6 +86,7 @@ def main():
             "run": RUN, "attempt": ATTEMPT, "job": JOB, "tree": TREE, "source_sha": SHA,
             "archive_sha256": DIGEST, "build": build["artifacts"], "studio_checks": gates["checks"],
             "browser": report["browserVersion"], "summary": gate["summary"], "rows": rows,
+            "input_blobs": blobs,
             "readiness": [{k: r[k] for k in ("sampleId", "passed", "blockers", "activeBackend",
                 "backendFallbackReason", "surfaceBackend", "surfaceFallbackReason", "performanceBudget")}
                 for r in checks.values()]
