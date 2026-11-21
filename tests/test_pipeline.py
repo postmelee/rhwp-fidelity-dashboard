@@ -257,7 +257,9 @@ class BoundaryTests(unittest.TestCase):
         pages = (pipeline.ROOT / ".github/workflows/pages.yml").read_text()
         self.assertIn("build --fetch-ledger", pages)
         self.assertNotIn("contents: write", pages)
-        self.assertNotIn("resolve", pages)
+        self.assertNotIn("pipeline.py resolve", pages)
+        self.assertNotIn("needs.resolve", pages)
+        self.assertNotIn("\n  resolve:", pages)
         self.assertNotIn("  push:", source)
 
     def test_measurement_fingerprint_excludes_publication_and_display(self):
