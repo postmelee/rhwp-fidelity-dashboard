@@ -4,13 +4,13 @@ import os
 import time
 import urllib.request
 
-def ready(artifacts, expected_id):
-    matches = [a for a in artifacts if a.get("name") == "github-pages" and not a.get("expired")]
+def ready(artifacts, expected_id, name="github-pages"):
+    matches = [a for a in artifacts if a.get("name") == name and not a.get("expired")]
     return len(matches) == 1 and matches[0].get("id") == expected_id
 
-def wait(fetch, expected_id, pause=time.sleep, attempts=40):
+def wait(fetch, expected_id, pause=time.sleep, attempts=40, name="github-pages"):
     for _ in range(attempts):
-        if ready(fetch(), expected_id):
+        if ready(fetch(), expected_id, name):
             return
         pause(3)
     raise RuntimeError("Uploaded Pages artifact is not visible in the run artifact listing")
@@ -27,7 +27,7 @@ def main():
             "Accept": "application/vnd.github+json", "Cache-Control": "no-cache"})
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)["artifacts"]
-    wait(fetch, int(artifact))
+    wait(fetch, int(artifact), name=os.environ["PAGES_ARTIFACT_NAME"])
     print("Exact Pages artifact is visible to the deployment API.")
 
 if __name__ == "__main__":
