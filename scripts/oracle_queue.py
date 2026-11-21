@@ -8,23 +8,8 @@ import subprocess
 import sys
 import tempfile
 
-from corpus_inventory import ORACLE, RECEIPT, REV, inventory
+from corpus_inventory import classify, ORACLE, RECEIPT, REV, inventory
 from core import write_json
-
-
-def classify(row, pairs, unmatched):
-    states = {pair["status"] for pair in pairs}
-    if "verified" in states:
-        return "verified"
-    if "mismatch" in states or "unavailable" in states:
-        return "review_invalid_receipt"
-    if "candidate" in states:
-        return "review_candidate"
-    if any("oracle" in rule["axes"] for rule in row["visual_deferrals"]):
-        return "deferred_oracle"
-    if row["path"] in unmatched:
-        return "needs_print_review"
-    return "outside_resolver_scope"
 
 
 def main(repo, output):
@@ -46,10 +31,13 @@ def main(repo, output):
     items = []
     for row in rows:
         found = pairs[row["path"]]
+        state = classify(row, found, unmatched)
+        if state != row["oracle_state"]:
+            raise ValueError("Path-only resolver projection differs from complete checkout")
         items.append({"path_sha256": hashlib.sha256(row["path"].encode()).hexdigest(),
                       "source_blob": row["blob"], "visual_deferrals": row["visual_deferrals"],
                       "resolver_scope": row["resolver_scope"],
-                      "state": classify(row, found, unmatched),
+                      "state": state,
                       "pairs": dict(Counter(p["status"] for p in found))})
     if len({i["path_sha256"] for i in items}) != summary["source_paths"]:
         raise ValueError("Inventory denominator mismatch")
