@@ -42,7 +42,7 @@ def member(bundle, path):
     return bundle.read(entry)
 
 
-def collect(run, attempt, pr):
+def collect(run, attempt, pr, merged_commit=None):
     route = f"actions/runs/{run}/attempts/{attempt}"
     meta = api(route)
     require(meta["event"] == "pull_request" and meta["repository"]["full_name"] == REPO
@@ -101,9 +101,11 @@ def collect(run, attempt, pr):
               "source_tree_sha": commit["tree"]["sha"], "fixture_root": root, "fixture_blobs": blobs,
               "artifact_id": prod["id"], "artifact_name": prod["name"], "artifact_sha256": digest(archive),
               "index_artifact_id": idx["id"], "index_sha256": digest(raw), "measured_at": job["completed_at"]}
-    pull = api(f"pulls/{pr}")
-    if pull.get("merged") and pull["head"]["sha"] == head:
-        merged = match(SHA, pull["merge_commit_sha"])
+    if merged_commit:
+        merged = match(SHA, merged_commit)
+        pull = api(f"pulls/{pr}")
+        require(pull.get("merged") and pull["head"]["sha"] == head and pull["merge_commit_sha"] == merged,
+                "Merged commit does not match the verified PR head")
         origin["merge_sha"] = merged
         origin["merge_tree_sha"] = match(SHA, api("git/commits/" + merged)["tree"]["sha"])
     report = import_archive(archive, origin)
@@ -121,5 +123,6 @@ if __name__ == "__main__":
     for name in ("run", "attempt", "pr"):
         parser.add_argument(name, type=int)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--merged-commit")
     args = parser.parse_args()
-    write_json(args.output, collect(args.run, args.attempt, args.pr))
+    write_json(args.output, collect(args.run, args.attempt, args.pr, args.merged_commit))
