@@ -150,6 +150,24 @@ async function test(browser) {
     assert.equal(await page.locator("tbody tr").count(), 1);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
+    await page.goto(base);
+    const coverage = page.locator("#overview .coverage-main:visible");
+    assert.equal(await coverage.getByRole("progressbar").getAttribute("max"), "3800");
+    assert.equal(await coverage.getByRole("progressbar").getAttribute("value"), "34");
+    assert.match(await coverage.innerText(), /0\.89%/);
+    await page.getByRole("link", {name: /Latest archived devel/}).click();
+    await expectTab(page, "overview");
+    assert.match(await picker.locator("option:checked").textContent(), /devel · 1a27faac/);
+    assert.match(await coverage.innerText(), /0\.95%/);
+    await page.reload();
+    assert.equal(await coverage.getByRole("progressbar").getAttribute("value"), "36");
+    const scope = page.locator("#overview .surface:visible").first();
+    assert.equal(await scope.getByRole("link", {name: "Browse corpus paths"}).getAttribute("href"),
+        "corpus-index.html?run=44967062895-1");
+    const rendererRows = await scope.locator("tbody tr").allTextContents();
+    assert.match(rendererRows[0], /Native Skia3650/);
+    assert.match(rendererRows[1], /WASM Canvas2D41763/);
+
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
     assert.ok(await noScript.locator("#overview").isVisible());

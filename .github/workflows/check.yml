@@ -38,6 +38,8 @@ jobs:
           git init "$RUNNER_TEMP/preview-ledger"
           git -C "$RUNNER_TEMP/preview-ledger" fetch --depth=1 https://github.com/postmelee/rhwp-fidelity-dashboard.git 17e6e4463c950c988c93b3ddb1afa09d8e556634
           git -C "$RUNNER_TEMP/preview-ledger" checkout FETCH_HEAD -- records
+          git -C "$RUNNER_TEMP/preview-ledger" fetch --depth=1 https://github.com/postmelee/rhwp-fidelity-dashboard.git bc38faad0e0f986b3d68d308442f3f43e6081ebf
+          git -C "$RUNNER_TEMP/preview-ledger" checkout FETCH_HEAD -- cohorts/44766813207-1.json cohorts/44967062895-1.json
           python3 scripts/build_preview.py --ledger "$RUNNER_TEMP/preview-ledger" --out preview
       - name: Browser smoke on preview
         if: github.event_name == 'pull_request'

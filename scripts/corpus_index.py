@@ -88,9 +88,9 @@ def build(out, inventory, archive):
     revision = source["source_revision"][:12]
     body = (f'<p>Inventory {revision} · {len(rows):,} paths · {inventory["unique_blobs"]:,} unique Git blobs</p>'
             '<p>Scope and deferrals are recorded per check. Sources outside this receipt set may have other reference PDFs.</p>'
-            '<label>Measured revision and run <select id="run"></select></label> '
+            '<div class="filters"><label>Measured revision and run <select id="run"></select></label> '
             '<label>Find document ID, hash or upstream path <input type="search" id="query"></label> '
-            '<label>Status <select id="state"><option value="">All</option></select></label> '
+            '<label>Status <select id="state"><option value="">All</option></select></label></div>'
             '<p id="count" aria-live="polite">Loading inventory…</p>'
             '<button id="prev" type="button">Previous</button> <button id="next" type="button">Next</button>'
             '<div class="scroll"><table class="page-grid"><caption>Source paths</caption><thead><tr>'
@@ -100,4 +100,4 @@ def build(out, inventory, archive):
     paired = statuses.get("Paired", 0)
     percent = 100 * paired / len(rows) if rows else 0
     tag = newest["tag"] if newest else "Unmeasured"
-    return f'<p>{tag} · <a href="corpus-index.html">Browse all {len(rows):,} source paths</a> · Paired in this release run {paired:,}/{len(rows):,} ({percent:.2f}%)</p>'
+    return f'<p>{tag} · <a href="corpus-index.html">Browse all {len(rows):,} source paths</a> · Paired in this run {paired:,}/{len(rows):,} ({percent:.2f}%)</p>'

@@ -183,7 +183,7 @@ def release_groups(records, release):
 def release_picker(groups):
     options = "".join(f'<option value="release-{esc(sha)}">{esc(tag)} · {esc(sha[:8])}</option>'
                       for sha, tag, _ in groups)
-    return (f'<label class="release-picker" hidden>Release or tested revision '
+    return (f'<label class="release-picker" hidden>Measurement revision '
             f'<select id="release-picker">{options}</select></label>')
 
 
@@ -465,33 +465,60 @@ def studio_screen_evidence(out):
             + transition_scope(out, report))
 
 
-def corpus_measurement_panel(out, inventory, groups):
-    counts = inventory["source_paths"]
-    ledger = out / "cohort-runs.json"
-    runs = json.loads(ledger.read_bytes()) if ledger.is_file() else []
+def corpus_measurement_panel(inventory, groups, runs, *, overview=False):
+    total = inventory["source_paths"]
     sections = []
     for sha, tag, _ in groups:
         run = next((r for r in reversed(runs) if r["engine_sha"] == sha and r["tag"] == tag), None)
         paired = run["paired_docs"] if run else 0
-        pct = 100 * paired / counts if counts else 0
+        run_key = f'{run["run_id"]}-{run["attempt"]}' if run else None
+        inventory_url = f"corpus-index.html?run={run_key}" if run_key else "corpus-index.html"
+        target = (f'{run["documents"]:,} paths · {run["target_pages"]:,} reference pages'
+                  if run else "No archived corpus run")
         rows = []
         for backend, title in (("native", "Native Skia"), ("wasm", "WASM Canvas2D")):
             values = run["by_backend"][backend] if run else {}
-            def score(key):
-                value = values.get(key)
-                return f"{value:.5f}" if value is not None else "Unmeasured"
-            rows.append([title, values.get("measured_pages", 0), score("median"), score("p10"), score("min")])
-        rows.extend([[path, 0, "Unmeasured", "Unmeasured", "Unmeasured"]
-                     for path in ("WASM CanvasKit", "Render IR output")])
-        link = (f'<p><a href="cohort-{run["run_id"]}-{run["attempt"]}.html">Document and page scores</a> · '
-                f'<a href="corpus-index.html?run={run["run_id"]}-{run["attempt"]}">All corpus paths for this run</a></p>'
-                if run else "")
-        sections.append(f'<section data-release="{sha}" data-preferred="true"><h3>Hancom Print fidelity · {esc(tag)}</h3>'
-                        f'<p><strong>{pct:.2f}% measured</strong> · {paired:,} of {counts:,} corpus paths paired · '
-                        f'{counts - paired:,} without a paired result for this revision</p>'
-                        + table("Scores on measured pages · 96 DPI silhouette", ["Output path", "Scored pages",
-                                "Median (%)", "P10 (%)", "Minimum (%)"], rows, cards=True) + link + '</section>')
+            scores = [f"{values[k]:.5f}" if values.get(k) is not None else "Unmeasured"
+                      for k in ("median", "p10", "min")]
+            rows.append([title, values.get("measured_docs", 0), values.get("measured_pages", 0), *scores])
+        if not overview:
+            rows.extend([[title, 0, 0, "Unmeasured", "Unmeasured", "Unmeasured"]
+                         for title in ("WASM CanvasKit", "Render IR output")])
+        score_link = f'<a class="action primary" href="cohort-{run_key}.html">Document and page scores</a>' if run_key else ""
+        coverage = ("<div class=\"coverage-grid\">"
+                    f'<div class="coverage-card coverage-main"><span>Paired corpus coverage</span>'
+                    f'<strong>{100 * paired / max(total, 1):.2f}%</strong>'
+                    f'<progress aria-label="Completed by both renderers" value="{paired}" max="{max(total, 1)}"></progress>'
+                    f'<small>{paired:,} / {total:,} source paths</small></div>'
+                    f'<div class="coverage-card"><span>Paths without a paired result</span><strong>{total - paired:,}</strong>'
+                    '<small>Includes paths outside this run and incomplete results</small></div>'
+                    f'<div class="coverage-card"><span>Measurement target</span><b>{target}</b>'
+                    + (f'<small>{run["paired_pages"]:,} paired pages · <a href="cohort-{run_key}.html">Run {run_key}</a></small>'
+                       if run else "") + '</div></div>')
+        sections.append(f'<section class="surface" data-release="{sha}" data-preferred="true"><div class="surface-heading">'
+                        f'<h3>Hancom Print fidelity</h3><span class="revision-label">{esc(tag)} · {esc(sha[:8])}</span></div>'
+                        + coverage + table("Fidelity among scored pages · 96 DPI silhouette",
+                                          ["Output path", "Completed paths", "Scored pages", "Median (%)",
+                                           "P10 (%)", "Minimum (%)"], rows, cards=True)
+                        + f'<div class="actions">{score_link}<a class="action" href="{inventory_url}">Browse corpus paths</a></div>'
+                        + '</section>')
     return "".join(sections)
+
+
+def revision_summary(release, runs, total):
+    latest_stable = next((r for r in reversed(runs)
+                          if r["engine_sha"] == release["sha"] and r["tag"] == release["tag"]), None)
+    latest_devel = next((r for r in reversed(runs) if r["tag"] == "devel"), None)
+    cards = []
+    for label, run in (("Current stable release", latest_stable), ("Latest archived devel", latest_devel)):
+        if not run:
+            continue
+        sha, tag, paired = run["engine_sha"], run["tag"], run["paired_docs"]
+        key = f'{run["run_id"]}-{run["attempt"]}'
+        cards.append(f'<a class="revision-card" data-revision-overview href="cohort-{key}.html" '
+                     f'data-revision="{esc(sha)}"><span>{label}</span><b>{esc(tag)} · {esc(sha[:8])}</b>'
+                     f'<strong>{paired:,}/{total:,} <small>paired paths</small></strong></a>')
+    return '<div class="revision-grid">' + "".join(cards) + '</div>' if cards else ""
 
 
 def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
@@ -510,21 +537,24 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
     observations = {(e["run_id"], e["attempt"]): e for e in snapshot["attempts"]}
     groups = release_groups(records, snapshot["release"])
     cohort_file = out / "cohort-runs.json"
-    if cohort_file.is_file():
+    cohort_runs = json.loads(cohort_file.read_bytes()) if cohort_file.is_file() else []
+    if cohort_runs:
         known = {sha for sha, _, _ in groups}
-        for run in reversed(json.loads(cohort_file.read_bytes())):
+        for run in reversed(cohort_runs):
             if run["engine_sha"] not in known:
                 groups.append((run["engine_sha"], run["tag"], []))
                 known.add(run["engine_sha"])
-    whole = corpus_measurement_panel(out, inventory, groups)
+    summary = revision_summary(snapshot["release"], cohort_runs, inventory["source_paths"])
+    whole = corpus_measurement_panel(inventory, groups, cohort_runs, overview=True)
+    comparison = corpus_measurement_panel(inventory, groups, cohort_runs)
     historical_pr_pages(out)
     panes = {
-        "overview": whole + inventory_section(inventory) + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + cohort_panel + overview(records, docs, snapshot["release"], groups),
-        "renderers": (whole + '<h3>Smoke regression · four-document suite</h3>' + run_views(groups, docs, "compare", renderer_tables)
+        "overview": whole + summary + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + '<div class="surface inventory-summary">' + inventory_section(inventory) + '</div>' + overview(records, docs, snapshot["release"], groups),
+        "renderers": (comparison + '<h3>Smoke regression · four-document suite</h3>' + run_views(groups, docs, "compare", renderer_tables)
                       + studio_screen_evidence(out)),
-        "documents": (cohort_panel + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
+        "documents": (whole + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
-        "history": pr_panel + '<p><a href="pr-9024.html">Historical PR #9024 · 763 paired HWPX pages</a></p>' + cohort_panel + history_view(records, observations),
+        "history": cohort_panel + history_view(records, observations) + pr_panel + '<p><a href="pr-9024.html">Historical PR #9024 · 763 paired HWPX pages</a></p>',
         "methods": methods() + "".join(
             f'<p data-release="{sha}" data-preferred="true">Selected revision · {esc(tag)} · '
             + (run_link(next((r for r in reversed(attempts) if r["status"] == "complete"), attempts[-1]))
@@ -545,10 +575,13 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
 <link rel="stylesheet" href="dashboard.css">
 <script src="dashboard.js" defer></script><script src="receipt-status.js" defer></script>
 </head>
-<body>
+<body class="dashboard">
 <a class="skip" href="#overview">Skip to dashboard content</a>
-<header><h1>rhwp fidelity dashboard</h1><p>Rendering coverage and fidelity against Hancom Print PDF</p>{release_picker(groups)}</header>
+<aside class="sidebar">
+<a class="brand" href="#overview"><b>rhwp</b></a>
 <nav aria-label="Dashboard views">{nav}</nav>
+</aside>
+<header class="masthead"><div><h1>Fidelity dashboard</h1><p>Renderer fidelity against Hancom Print PDF</p></div>{release_picker(groups)}</header>
 <main id="content">{sections}</main>
 <footer>Public data · Numeric results &amp; approved metadata</footer>
 </body>
