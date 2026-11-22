@@ -15,12 +15,12 @@ from receipt_cohort import ROOT
 
 def receipt_cases(path, index_receipts):
     """Load a batch of job receipts and postpone ambiguous versions of a pair."""
-    if path.is_dir():
-        paths = sorted(entry for entry in path.glob("*.json") if entry.is_file() and not entry.is_symlink())
-        if not paths:
-            raise ValueError("No Print receipts in the batch directory")
-    else:
-        paths = [path]
+    if not path.is_dir():
+        receipt = read_json(path)
+        return receipt, set(), digest(canonical(receipt))
+    paths = sorted(entry for entry in path.glob("*.json") if entry.is_file() and not entry.is_symlink())
+    if not paths:
+        raise ValueError("No Print receipts in the batch directory")
     pairs = defaultdict(dict)
     for receipt in paths:
         for pair, record in index_receipts(read_json(receipt)).items():
@@ -110,10 +110,12 @@ def prepare_in(repo, receipt_path, target, folder, metadata_evidence, compat):
                            "receipt_states": dict(Counter(p["status"] for p in candidates))})
     write_json(folder / "manifest.json", {"schema_version": 1, "documents": docs})
     manifest(folder, verify=False)
-    write_json(folder / "intake.json", {**scope, "paths": len(files), "verified": len(docs),
-                                       "out_of_inventory": sum(p["sample"] not in files for p in pairs),
-                                       "out_of_inventory_conflicts": len(conflicting_sources - files.keys()),
-                                       "rows": accounting})
+    report = {**scope, "paths": len(files), "verified": len(docs),
+              "out_of_inventory": sum(p["sample"] not in files for p in pairs), "rows": accounting}
+    outside = conflicting_sources - files.keys()
+    if outside:
+        report["out_of_inventory_conflicts"] = len(outside)
+    write_json(folder / "intake.json", report)
     final = target / digest(canonical([read_json(folder / "intake.json"), docs]))
     try:
         os.rename(folder, final)
