@@ -54,6 +54,10 @@ function showHash({focus = false} = {}) {
             (exact ? view !== target : view.dataset.preferred !== "true");
     }
     for (const [i, tab] of tabs.entries()) tab.href = panelHash(panels[i].id);
+    for (const card of revisionCards) {
+        if (card.dataset.revision === releasePicker.value.slice(8)) card.setAttribute("aria-current", "true");
+        else card.removeAttribute("aria-current");
+    }
     for (const link of document.querySelectorAll("[data-panel-link]")) link.href = panelHash(link.dataset.panelLink);
     activate(panels.indexOf(panel));
     if (target?.classList.contains("history-run") && filter.value !== target.dataset.status) filter.value = "";
@@ -62,9 +66,9 @@ function showHash({focus = false} = {}) {
         target.open = true;
         target.scrollIntoView({block: "nearest"});
     }
-    if (focus) (target?.querySelector("summary") ?? panel).focus({preventScroll: true});
+    if (focus) ((target instanceof HTMLDetailsElement && target.querySelector("summary")) || panel).focus({preventScroll: true});
 }
-for (const link of document.querySelectorAll('main a[href^="#"], .skip')) {
+for (const link of document.querySelectorAll('main a[href^="#"], .skip, .brand')) {
     if (panels.some(panel => "#" + panel.id === link.hash)) link.dataset.panelLink = link.hash.slice(1);
 }
 nav.setAttribute("role", "tablist");
@@ -83,6 +87,7 @@ for (const [i, tab] of tabs.entries()) {
     });
     tab.addEventListener("keydown", event => {
         const destination = {
+            ArrowDown: (i + 1) % tabs.length, ArrowUp: (i + tabs.length - 1) % tabs.length,
             ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i + tabs.length - 1) % tabs.length,
             Home: 0, End: tabs.length - 1,
         }[event.key];
@@ -97,12 +102,25 @@ for (const [i, tab] of tabs.entries()) {
     });
 }
 window.addEventListener("hashchange", () => showHash());
-for (const link of document.querySelectorAll('main a[href^="#"], .skip')) {
+for (const link of document.querySelectorAll('main a[href^="#"], .skip, .brand')) {
     link.addEventListener("click", event => {
         if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         if (location.hash !== link.hash) history.pushState(null, "", link.hash);
         showHash({focus: true});
+    });
+}
+
+const revisionCards = Array.from(document.querySelectorAll("[data-revision-overview]"));
+for (const card of revisionCards) {
+    card.addEventListener("click", event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        const hash = "#overview?release=" + card.dataset.revision;
+        if (!options.has("release-" + card.dataset.revision)) return;
+        event.preventDefault();
+        if (location.hash !== hash) history.pushState(null, "", hash);
+        showHash({focus: true});
+        window.scrollTo({top: 0});
     });
 }
 

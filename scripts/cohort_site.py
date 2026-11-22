@@ -116,11 +116,11 @@ def build(folder, out, inventory):
                 f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a> · <a href="{registry_url}">Registered reference provenance</a></p>'
                 '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
                 links + stats + family_table(record, config, summary["pages"]) +
-                '<label>Find a document <input type="search" id="query"></label> '
+                '<div class="filters"><label>Find a document <input type="search" id="query"></label> '
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
                 '<label><input type="checkbox" id="native-lower"> Native Skia scores below Canvas2D</label> '
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
-                '<option value="page">Document and page</option></select></label><p id="count" aria-live="polite"></p>' + caption)
+                '<option value="page">Document and page</option></select></label></div><p id="count" aria-live="polite"></p>' + caption)
         (out / ("cohort-" + run_key + ".html")).write_text(page("Print measurement · " + tag, body,
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
