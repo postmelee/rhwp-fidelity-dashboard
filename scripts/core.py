@@ -63,6 +63,17 @@ def safe_file(root, relative):
         raise ValueError("missing corpus file")
     return dest
 
+def verify_document_inputs(root, document):
+    """Check the bytes supplied to one document's render using bounded reads."""
+    sources = [document[name] for name in ("document", "golden", "font_environment")
+               if document[name]["path"] is not None]
+    for group, message in ((sources, "corpus hash mismatch"), (document["fonts"], "font hash mismatch")):
+        for asset in group:
+            with safe_file(root, asset["path"]).open("rb") as stream:
+                if hashlib.file_digest(stream, "sha256").hexdigest() != asset["sha256"]:
+                    raise ValueError(message)
+
+
 def manifest(root, verify=True):
     root = Path(root)
     m = read_json(root / "manifest.json")
@@ -96,8 +107,6 @@ def manifest(root, verify=True):
             safe_path(root, record["path"])
             if not all(isinstance(record[k], str) and record[k].strip() for k in ("source", "provenance")):
                 raise ValueError("source/provenance missing")
-            if verify and digest(safe_file(root, record["path"]).read_bytes()) != record["sha256"]:
-                raise ValueError("corpus hash mismatch")
         if not d["golden"]["provenance"].startswith("Hancom Print "):
             raise ValueError("independent Hancom Print required")
         if type(d["fonts"]) is not list:
@@ -108,8 +117,8 @@ def manifest(root, verify=True):
             safe_path(root, font["path"])
             if font["usage_approved"] is not True or not font["license"] or not font["source"]:
                 raise ValueError("font redistribution not approved")
-            if verify and digest(safe_file(root, font["path"]).read_bytes()) != font["sha256"]:
-                raise ValueError("font hash mismatch")
+        if verify:
+            verify_document_inputs(root, d)
     return m
 
 def stats(scores):
