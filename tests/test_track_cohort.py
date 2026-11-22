@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from core import canonical, digest
-from track_cohort import PROTOCOL, archive_docs, release_sources, select
+from track_cohort import PROTOCOL, archive_docs, release_sources, select, select_stable
 
 
 class TrackTests(unittest.TestCase):
@@ -24,6 +24,21 @@ class TrackTests(unittest.TestCase):
         stable = dict(partial, tag="v1", cohort_sha256=digest(canonical(dict(config, tag="v1", engine_sha=sha))))
         self.assertEqual(select([stable], [("v1", sha), ("v2", newest)], config), ("v2", newest))
         self.assertEqual(select([partial] * 3, [("devel", sha)], config), ("", ""))
+
+    def test_current_stable_precedes_old_unmeasured_tags(self):
+        tags = ["v0.5.0", "v0.9.1"]
+        sha = "a" * 40
+        config = {"documents": []}
+        hint = {"tag": tags[-1], "engine_sha": sha, "stages": {},
+                "cohort_sha256": digest(canonical(dict(config, tag=tags[-1], engine_sha=sha)))}
+        seen = []
+        def resolve(tag):
+            seen.append(tag)
+            return (sha if tag == tags[-1] else "b" * 40), "stable-release"
+        self.assertEqual(select_stable([], tags, config, resolve), (tags[-1], sha))
+        self.assertEqual(select_stable([hint], tags, config, resolve), (tags[-1], sha))
+        self.assertEqual(seen, [tags[-1], tags[-1]])
+        self.assertEqual(select_stable([hint] * 3, tags, config, resolve), (tags[0], "b" * 40))
 
     def test_release_reuses_only_a_locked_stage(self):
         config = {"tag": "v1", "engine_sha": "a" * 40, "corpus_sha": "b" * 40,
