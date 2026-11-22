@@ -1,0 +1,62 @@
+{
+  "revision": "93e861523623bcd84d57b808edb62af5af2aa82a",
+  "entries": [
+    {
+      "registered": {
+        "sample": "samples/basic/issue2007_nested_cell_pagination_42065.hwp",
+        "source_sha256": "bebd4ce3691246b0fb3ae332e1d40bc51d9035cddb9fc3d378466b6a8a2b5626",
+        "pdf": "pdf/review-integration-20261026/issue2007_nested_cell_pagination_42065-2020.pdf",
+        "pdf_sha256": "bb486ef1215e79c2ca0c891b2b194bdf988691b0e91b8a07ebdbffc6d749473b",
+        "pages": 17,
+        "provenance": "desktop_hancom_print",
+        "evidence": "mydocs/pr/assets/visual-protected-baseline/manifest.json"
+      },
+      "note": "mydocs/pr/assets/issue_8371/regression/README.md",
+      "markers": [
+        "한컴 2020 Print",
+        "bebd4ce3691246b0fb3ae332e1d40bc51d9035cddb9fc3d378466b6a8a2b5626",
+        "bb486ef1215e79c2ca0c891b2b194bdf988691b0e91b8a07ebdbffc6d749473b"
+      ],
+      "hancom": "2020",
+      "compat": "2022"
+    },
+    {
+      "registered": {
+        "sample": "samples/task2146/21761835_jeonjik_exemption_table.hwp",
+        "source_sha256": "d8e7e38b206f6e53b7d2d260115396f8a0dd94bd8b712bbc4428dc11bf66e5dc",
+        "pdf": "pdf/task2146/21761835_jeonjik_exemption_table-hwp-print-2020.pdf",
+        "pdf_sha256": "95487e5a7f193da6f96e8a16e0aa4ff0a39a15673a8f5dee10a78a0491fc1eb1",
+        "pages": 6,
+        "provenance": "desktop_hancom_print",
+        "evidence": "mydocs/pr/assets/issue_7032/README.md"
+      },
+      "note": "mydocs/pr/assets/issue_7032/README.md",
+      "markers": [
+        "HWP는 동일 원본의 한컴 2020 Print",
+        "95487e5a7f193da6f96e8a16e0aa4ff0a39a15673a8f5dee10a78a0491fc1eb1",
+        "78e58b30-4c3c-4100-a2f8-c724fbb7b33b"
+      ],
+      "hancom": "2020",
+      "compat": "2022"
+    },
+    {
+      "registered": {
+        "sample": "samples/issue5800-hancom-symbol.hwp",
+        "source_sha256": "e09951a7ac179344a9f9c3dd9625a6de757a5d5cc5cee2fcb7c76c040959476d",
+        "pdf": "pdf/issue5140-version-boundary/issue5800-hancom-symbol-2020.pdf",
+        "pdf_sha256": "af0f46cbc65984afd845f273a60af9486ee4b2476fe408a01b203def567156e9",
+        "pages": 1,
+        "provenance": "desktop_hancom_print",
+        "evidence": "mydocs/pr/assets/pr9280/README.md"
+      },
+      "note": "mydocs/pr/assets/pr9280/README.md",
+      "markers": [
+        "한컴 2020 Print",
+        "samples/issue5800-hancom-symbol.hwp",
+        "pdf/issue5140-version-boundary/issue5800-hancom-symbol-2020.pdf"
+      ],
+      "hancom": "2020",
+      "compat": "2022"
+    }
+  ]
+}

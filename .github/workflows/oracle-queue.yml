@@ -2,7 +2,7 @@ name: Verify oracle queue
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['scripts/oracle_queue.py', 'scripts/registered_print_queue.py', 'scripts/local_print_intake.py', '.github/workflows/oracle-queue.yml']
+    paths: ['scripts/oracle_queue.py', 'scripts/registered_print_queue.py', 'scripts/local_print_intake.py', 'corpus/print-reference-notes.json', '.github/workflows/oracle-queue.yml']
 permissions:
   contents: read
 jobs:
@@ -41,7 +41,7 @@ jobs:
         run: |
           python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/intake-deps"
           PYTHONPATH="$RUNNER_TEMP/intake-deps" python3 dashboard/scripts/registered_print_queue.py \
-            622af208ee12c4cb16357d465e4802e7fd4726bc worklist.json registered-print.json
+            93e861523623bcd84d57b808edb62af5af2aa82a worklist.json registered-print.json
       - name: Check evidence for same-byte reference reuse
         run: |
           python3 - <<'PY'

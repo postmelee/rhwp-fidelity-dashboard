@@ -139,6 +139,107 @@
       "reference_evidence_sha256": "4e295937a100d44a2949c9b34261f1f45c6ae17ee6efdc6fed0e48e1ed90f809",
       "hancom": "2024",
       "compat": "2024"
+    },
+    {
+      "input": "samples/basic/issue2007_nested_cell_pagination_42065.hwp",
+      "id": "registered-0f22eb8f6d3fc407",
+      "source_sha256": "bebd4ce3691246b0fb3ae332e1d40bc51d9035cddb9fc3d378466b6a8a2b5626",
+      "pdf": "pdf/review-integration-20261026/issue2007_nested_cell_pagination_42065-2020.pdf",
+      "pdf_sha256": "bb486ef1215e79c2ca0c891b2b194bdf988691b0e91b8a07ebdbffc6d749473b",
+      "pages": 17,
+      "reference_revision": "93e861523623bcd84d57b808edb62af5af2aa82a",
+      "reference_evidence": "mydocs/pr/assets/visual-protected-baseline/manifest.json",
+      "reference_evidence_sha256": "8ef1ea3611f1112d94be20eb3e8fa3865f21411f5b5a400a95931edc4cb1273b",
+      "hancom": "2020",
+      "compat": "2022",
+      "print_note": "mydocs/pr/assets/issue_8371/regression/README.md",
+      "print_note_sha256": "75a961130b09da6cca1ffd58fc7dfafcececeb32198aa1eb9b1346f0c4ab3c8a"
+    },
+    {
+      "input": "samples/task2146/21761835_jeonjik_exemption_table.hwp",
+      "id": "registered-2abee7587fe5daec",
+      "source_sha256": "d8e7e38b206f6e53b7d2d260115396f8a0dd94bd8b712bbc4428dc11bf66e5dc",
+      "pdf": "pdf/task2146/21761835_jeonjik_exemption_table-hwp-print-2020.pdf",
+      "pdf_sha256": "95487e5a7f193da6f96e8a16e0aa4ff0a39a15673a8f5dee10a78a0491fc1eb1",
+      "pages": 6,
+      "reference_revision": "93e861523623bcd84d57b808edb62af5af2aa82a",
+      "reference_evidence": "mydocs/pr/assets/issue_7032/README.md",
+      "reference_evidence_sha256": "2f93ced6ea3756db9fbebe045d48dfcd546a85a73e95ed489c8656b4e33b7caf",
+      "hancom": "2020",
+      "compat": "2022",
+      "print_note": "mydocs/pr/assets/issue_7032/README.md",
+      "print_note_sha256": "2f93ced6ea3756db9fbebe045d48dfcd546a85a73e95ed489c8656b4e33b7caf"
+    },
+    {
+      "input": "samples/issue5800-hancom-symbol.hwp",
+      "id": "registered-ac9eacb81b3681cb",
+      "source_sha256": "e09951a7ac179344a9f9c3dd9625a6de757a5d5cc5cee2fcb7c76c040959476d",
+      "pdf": "pdf/issue5140-version-boundary/issue5800-hancom-symbol-2020.pdf",
+      "pdf_sha256": "af0f46cbc65984afd845f273a60af9486ee4b2476fe408a01b203def567156e9",
+      "pages": 1,
+      "reference_revision": "93e861523623bcd84d57b808edb62af5af2aa82a",
+      "reference_evidence": "mydocs/pr/assets/pr9280/README.md",
+      "reference_evidence_sha256": "1c6fa4ba3e02a0dddbf655932848133a262572a0f715e90c3cdf0e2ec5668c90",
+      "hancom": "2020",
+      "compat": "2022",
+      "print_note": "mydocs/pr/assets/pr9280/README.md",
+      "print_note_sha256": "1c6fa4ba3e02a0dddbf655932848133a262572a0f715e90c3cdf0e2ec5668c90"
+    },
+    {
+      "id": "alias-4382eabadb86cde5",
+      "input": "mydocs/pr/assets/issue7445/1480000-201900042-chemical-labeling-standards.hwp",
+      "source_sha256": "4382eabadb86cde5730a7e7b972cea1828fea0c1c743a654c2a430cc19ae26c0",
+      "pdf": "pdf/issue7382-regression-review/1480000-201900042-chemical-labeling-standards-2020.pdf",
+      "pdf_sha256": "b5bfc916dae3aff2fa02ea1942f12e84b7623b8753657c7fcead7ffbca3a8047",
+      "pages": 103,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json",
+      "reference_alias_of": "registered-4382eabadb86cde5"
+    },
+    {
+      "id": "alias-398d03a5d5e4d6e8",
+      "input": "mydocs/pr/assets/issue7445/1480000-201900042-chemical-product-labeling-study.hwp",
+      "source_sha256": "398d03a5d5e4d6e857086be532d6d9ed0cec9c8ad06f95c17bbb7f83056ae860",
+      "pdf": "pdf/1480000-201900042-chemical-product-labeling-study-2020.pdf",
+      "pdf_sha256": "f8e5c0408e221080ede9a9a67b153d02d792d22961c738e46749641f32a32e79",
+      "pages": 103,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7739_7743_20261119/analysis.md",
+      "measurement_evidence": "mydocs/pr/assets/issues7739_7743_20261119/visual-evidence.json",
+      "reference_alias_of": "registered-398d03a5d5e4d6e8"
+    },
+    {
+      "id": "alias-5090e9d20ce75814",
+      "input": "mydocs/pr/assets/issue7445/78494-virtual-convergence-industry-decree.hwpx",
+      "source_sha256": "5090e9d20ce75814febeb4b79e106ea6abfd2546e511f229900d137d42623617",
+      "pdf": "pdf/78494-virtual-convergence-industry-decree-2020.pdf",
+      "pdf_sha256": "367fb3749f571521eef2036fe4327ce5b9cf6b7728966257328c1144f08ff8c9",
+      "pages": 74,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json",
+      "reference_alias_of": "registered-5090e9d20ce75814"
+    },
+    {
+      "id": "alias-90e7442874bee1e5",
+      "input": "mydocs/pr/assets/issue7445/outline_navigation_panel_demo.hwpx",
+      "source_sha256": "90e7442874bee1e5f774287b38323ed556e241539c783e100d0b7b93631aa6b4",
+      "pdf": "pdf/issue7382-regression-review/outline_navigation_panel_demo-2020.pdf",
+      "pdf_sha256": "c24e248c56bad280219bbd32f59fc6f07a3895fb5146b225c9ae4f9e4ac662be",
+      "pages": 3,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json",
+      "reference_alias_of": "registered-90e7442874bee1e5"
+    },
+    {
+      "id": "alias-a033627d1c488172",
+      "input": "mydocs/pr/assets/issue7445/outline_navigation_table_cell_number.hwpx",
+      "source_sha256": "a033627d1c48817201bee8edd1b2d71b8c49a407af97346b6f1c7fb912602b1c",
+      "pdf": "pdf/issue7382-regression-review/outline_navigation_table_cell_number-2020.pdf",
+      "pdf_sha256": "7e92550f0724026b7c88d1f843411b7ace744cce273f614e338cbd55d40eba81",
+      "pages": 1,
+      "hancom": "desktop Print",
+      "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json",
+      "reference_alias_of": "registered-a033627d1c488172"
     }
   ]
 }

@@ -55,8 +55,10 @@ def verify_receipt(config):
 
 def verify_registered(config):
     import json
-    verify_later_registered(d for d in config["documents"] if "reference_revision" in d)
-    extra = [d for d in config["documents"] if "reference_evidence" in d and "reference_revision" not in d]
+    verify_reference_aliases(config)
+    docs = [d for d in config["documents"] if "reference_alias_of" not in d]
+    verify_later_registered(d for d in docs if "reference_revision" in d)
+    extra = [d for d in docs if "reference_evidence" in d and "reference_revision" not in d]
     if not extra:
         return
     base = "https://raw.githubusercontent.com/edwardkim/rhwp/" + config["corpus_sha"] + "/"
@@ -86,6 +88,22 @@ def verify_registered(config):
             raise ValueError("Historical input audit differs from registered Print reference")
 
 
+def verify_reference_aliases(config):
+    """Bind an alias to an already verified reference and identical input conditions."""
+    source_docs = {r["id"]: r for r in config["documents"] if "reference_alias_of" not in r}
+    for alias in config["documents"]:
+        if "reference_alias_of" not in alias:
+            continue
+        original = source_docs.get(alias["reference_alias_of"])
+        if original is None:
+            raise ValueError("Missing independently verified original for the alias")
+        if alias["input"] == original["input"] or Path(alias["input"]).name != Path(original["input"]).name:
+            raise ValueError("Alias must name a different pinned path with the same basename")
+        retained = {k: v for k, v in alias.items() if k not in ("id", "input", "reference_alias_of")}
+        if retained != {k: v for k, v in original.items() if k not in ("id", "input")}:
+            raise ValueError("Alias changed the original input digest or Print conditions")
+
+
 def verify_later_registered(documents):
     import json
     from functools import lru_cache
@@ -93,7 +111,7 @@ def verify_later_registered(documents):
     items = list(documents)
     if not items:
         return
-    from registered_print_queue import REGISTRY, explicit_print, fetch
+    from registered_print_queue import REGISTRY, explicit_print, fetch, reviewed_print_note
 
     @lru_cache(maxsize=None)
     def registry(revision):
@@ -108,9 +126,16 @@ def verify_later_registered(documents):
                 or ref["evidence"] != doc["reference_evidence"]):
             raise ValueError("Later registration differs from the pinned measurement input")
         raw = evidence(revision, ref["evidence"])
-        if (digest(raw) != doc["reference_evidence_sha256"]
-                or explicit_print(ref, json.loads(raw)) != (doc["hancom"], doc["compat"])):
-            raise ValueError("Later Print evidence or its measurement conditions differ")
+        if digest(raw) != doc["reference_evidence_sha256"]:
+            raise ValueError("Later Print evidence differs from the pinned evidence")
+        if "print_note" in doc:
+            reviewed = reviewed_print_note(revision, ref, evidence)
+            actual = ((reviewed[0], reviewed[1]) if reviewed and all(doc.get(k) == v for k, v in reviewed[2].items())
+                      else None)
+        else:
+            actual = explicit_print(ref, json.loads(raw))
+        if actual != (doc["hancom"], doc["compat"]):
+            raise ValueError("Later Print measurement conditions differ")
 
 
 def measure(upstream, output, stage, config=None):
