@@ -114,6 +114,23 @@ def sweep_diagnosis(base, log):
     for leaf in ("run_manifest.json", "silhouette_manifest.json", "manifest.json",
                  "native-export.json", "wasm-export-complete.json", "native-png-metadata.log"):
         result[leaf] = (base / leaf).is_file()
+    reasons = {"native_webfont_preparation_failed", "raster_export_failed",
+               "invalid_embedded_font", "unavailable_document_page_counts"}
+    states = {"complete", "incomplete", "failed"}
+    failures = set()
+    for part in sorted((base / "silhouette-parts").glob("p[0-9]*-[0-9]*/manifest.json")):
+        try:
+            candidate = read_json(part).get("pr_review_gate", {}).get("reason")
+            failures.add(candidate if candidate in reasons else "other")
+        except (OSError, ValueError, TypeError):
+            failures.add("unreadable")
+    result["part_failure_reasons"] = sorted(failures)
+    if result["silhouette_manifest.json"]:
+        try:
+            state = read_json(base / "silhouette_manifest.json").get("run_state")
+            result["state"] = state if state in states else "unknown"
+        except (OSError, ValueError, TypeError):
+            result["state"] = "unreadable"
     with log.open("rb") as stream:
         stream.seek(max(0, log.stat().st_size - 65536))
         tail = stream.read().decode(errors="replace")
@@ -125,6 +142,16 @@ def sweep_diagnosis(base, log):
         "font-invalid-redirect": "웹폰트가 허용되지 않은 서버로",
         "embedded-font-selection": "문서 내장 글꼴의 선택 face를 공급할 수 없습니다",
         "font-face-metadata": "공급 face의 family 이름을 해독할 수 없습니다",
+        "font-supply-url": "고정되지 않은 웹폰트 공급 URL:",
+        "font-supply-too-large": "웹폰트 크기가 허용 범위 밖입니다",
+        "font-unicode-cmap": "웹폰트 이름 또는 Unicode cmap이 없습니다",
+        "file-not-found": "FileNotFoundError:",
+        "decode": "UnicodeDecodeError:",
+        "value-error": "ValueError:",
+        "type-error": "TypeError:",
+        "subprocess-failure": "CalledProcessError:",
+        "size-or-space": "No space left on device",
+        "font-http-error": "HTTPError:",
         "http-403": "HTTP Error 403",
         "http-404": "HTTP Error 404",
         "http-429": "HTTP Error 429",
@@ -251,7 +278,7 @@ def run(upstream, corpus, destination, expected_sha, prepared_build=None):
                     print(f'Measurement started: {backend}/{d["id"]}/{stage_name}', flush=True)
                     code, base, log = sweep_document(upstream, corpus, work, backend, d, smoke)
                     print(f'Measurement process exited: {backend}/{d["id"]} code={code}', flush=True)
-                    if not (base / "silhouette_manifest.json").is_file():
+                    if not (base / "run_manifest.json").is_file() or not (base / "silhouette_manifest.json").is_file():
                         print("Sweep diagnosis: " + canonical(sweep_diagnosis(base, log)).decode(), flush=True)
                     row = consume(base, d, selected=smoke, backend=backend)
                     if not smoke:

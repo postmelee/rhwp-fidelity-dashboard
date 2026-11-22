@@ -24,10 +24,13 @@ def main(upstream, work):
     for doc in docs:
         code, base, log = adapter.sweep_document(upstream, corpus, work, "native", doc, True)
         result = adapter.sweep_diagnosis(base, log)
-        if result["silhouette_manifest.json"]:
-            row = adapter.consume(base, doc, selected=True, backend="native")
-            result["score"] = row["scores"][0]["raw"] if row["scores"] else None
-            result["rendered_pages"] = row["rendered_pages"]
+        if result.get("state") == "complete" and result["run_manifest.json"]:
+            try:
+                row = adapter.consume(base, doc, selected=True, backend="native")
+                result["score"] = row["scores"][0]["raw"] if row["scores"] else None
+                result["rendered_pages"] = row["rendered_pages"]
+            except (OSError, ValueError, KeyError) as error:
+                result["validation_error"] = type(error).__name__
         print("Native diagnostic " + canonical({"id": doc["id"], "exit": code, **result}).decode(), flush=True)
 
 
