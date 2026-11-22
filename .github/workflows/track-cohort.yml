@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event_name == 'push' && 'baseline') || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+  group: cohort-track-${{ github.event.pull_request.number || inputs.track || ((github.event_name == 'push' || github.event.schedule == '47 1 * * *') && 'stable' || 'devel') }}
   cancel-in-progress: false
 jobs:
   preview:
@@ -42,6 +42,7 @@ jobs:
           PYTHONPATH="scripts:$RUNNER_TEMP/pdfcheck" python3 - <<'PY'
           import hashlib
           import urllib.request
+          from urllib.parse import quote
           import pypdfium2
           from receipt_cohort import verify_registered
           from track_cohort import tracked_config
@@ -52,7 +53,10 @@ jobs:
               if "reference_evidence" not in row:
                   continue
               for path, key in (("input", "source_sha256"), ("pdf", "pdf_sha256")):
-                  with urllib.request.urlopen(base + row[path], timeout=60) as stream:
+                  origin = base
+                  if path == "pdf" and "reference_revision" in row:
+                      origin = "https://raw.githubusercontent.com/edwardkim/rhwp/" + row["reference_revision"] + "/"
+                  with urllib.request.urlopen(origin + quote(row[path]), timeout=60) as stream:
                       data = stream.read(32 * 1024 * 1024 + 1)
                   assert len(data) <= 32 * 1024 * 1024 and hashlib.sha256(data).hexdigest() == row[key]
                   if path == "pdf":
@@ -80,7 +84,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RETRY_DEVEL: ${{ inputs.retry_devel }}
-          TRACK: ${{ inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+          TRACK: ${{ inputs.track || ((github.event_name == 'push' || github.event.schedule == '47 1 * * *') && 'stable' || 'devel') }}
         run: python3 scripts/track_cohort.py plan
   measure:
     needs: plan
@@ -108,7 +112,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
-          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1 Brotli==1.2.0
           rustup target add wasm32-unknown-unknown
           cargo install wasm-pack --version 0.15.0 --locked
       - name: Measure two-page pilot with both renderers

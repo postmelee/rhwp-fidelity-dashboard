@@ -142,6 +142,7 @@ def sweep_diagnosis(base, log):
         "font-invalid-redirect": "웹폰트가 허용되지 않은 서버로",
         "embedded-font-selection": "문서 내장 글꼴의 선택 face를 공급할 수 없습니다",
         "font-face-metadata": "공급 face의 family 이름을 해독할 수 없습니다",
+        "woff2-brotli": "No module named brotli",
         "font-supply-url": "고정되지 않은 웹폰트 공급 URL:",
         "font-supply-too-large": "웹폰트 크기가 허용 범위 밖입니다",
         "font-unicode-cmap": "웹폰트 이름 또는 Unicode cmap이 없습니다",

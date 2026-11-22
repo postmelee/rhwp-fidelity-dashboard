@@ -27,7 +27,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1 Brotli==1.2.0
       - name: Verify actual upstream PDF and manifest APIs without engine builds
         run: |
           python3 - <<'PY'
