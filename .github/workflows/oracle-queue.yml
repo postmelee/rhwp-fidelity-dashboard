@@ -2,7 +2,7 @@ name: Verify oracle queue
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['scripts/oracle_queue.py', 'scripts/local_print_intake.py', '.github/workflows/oracle-queue.yml']
+    paths: ['scripts/oracle_queue.py', 'scripts/registered_print_queue.py', 'scripts/local_print_intake.py', '.github/workflows/oracle-queue.yml']
 permissions:
   contents: read
 jobs:
@@ -37,9 +37,13 @@ jobs:
                      for row in tasks if row["oracle_state"] == "verified")
           print(report["states"])
           PY
-      - name: Prepare real local Print inputs and keep a changed digest unmeasured
+      - name: Verify newer registered Print sources against the pinned inventory
         run: |
           python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/intake-deps"
+          PYTHONPATH="$RUNNER_TEMP/intake-deps" python3 dashboard/scripts/registered_print_queue.py \
+            622af208ee12c4cb16357d465e4802e7fd4726bc worklist.json registered-print.json
+      - name: Prepare real local Print inputs and keep a changed digest unmeasured
+        run: |
           PYTHONPATH="dashboard/scripts:$RUNNER_TEMP/intake-deps" python3 - <<'PY'
           from pathlib import Path
           from local_print_intake import prepare
@@ -65,4 +69,5 @@ jobs:
           path: |
             queue.json
             worklist.json
+            registered-print.json
           retention-days: 14
