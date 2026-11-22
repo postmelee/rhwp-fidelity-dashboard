@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import os
+from urllib.parse import quote
 import urllib.request
 
 import adapter
@@ -18,15 +19,17 @@ def contract(config=None):
     defaults = manifest(ROOT / "corpus", verify=False)["documents"][0]
     docs = []
     for row in config["documents"]:
-        def asset(path, sha, provenance):
-            return {"path": "cache/" + row["id"] + "/" + Path(path).name, "source": base + path,
+        reference_base = ("https://raw.githubusercontent.com/edwardkim/rhwp/"
+                          + row["reference_revision"] + "/" if "reference_revision" in row else base)
+        def asset(path, sha, provenance, origin):
+            return {"path": "cache/" + row["id"] + "/" + Path(path).name, "source": origin + quote(path),
                     "sha256": sha, "provenance": provenance}
         docs.append({
-            "id": row["id"], "compat": "2022", "pages": row["pages"],
-            "document": asset(row["input"], row["source_sha256"], "Public upstream verification input"),
-            "golden": asset(row["pdf"], row["pdf_sha256"], "Hancom Print " + row["hancom"]),
+            "id": row["id"], "compat": row.get("compat", "2022"), "pages": row["pages"],
+            "document": asset(row["input"], row["source_sha256"], "Public upstream verification input", base),
+            "golden": asset(row["pdf"], row["pdf_sha256"], "Hancom Print " + row["hancom"], reference_base),
             "publication": {"approved": True, "metadata_approved": True, "raw_files": False,
-                            "evidence": base + row.get("reference_evidence", config["receipt"])},
+                            "evidence": reference_base + quote(row.get("reference_evidence", config["receipt"]))},
             "font_environment": defaults["font_environment"], "fonts": defaults["fonts"],
         })
     return config, docs
@@ -52,12 +55,13 @@ def verify_receipt(config):
 
 def verify_registered(config):
     import json
-    extra = [d for d in config["documents"] if "reference_evidence" in d]
+    verify_later_registered(d for d in config["documents"] if "reference_revision" in d)
+    extra = [d for d in config["documents"] if "reference_evidence" in d and "reference_revision" not in d]
     if not extra:
         return
     base = "https://raw.githubusercontent.com/edwardkim/rhwp/" + config["corpus_sha"] + "/"
     def fetch(path):
-        with urllib.request.urlopen(base + path, timeout=60) as response:
+        with urllib.request.urlopen(base + quote(path), timeout=60) as response:
             return json.load(response)
     registry = {d["sample"]: d for d in fetch(config["registry"])["references"]}
     sources = {path: fetch(path) for path in {d.get("measurement_evidence", d["reference_evidence"]) for d in extra}}
@@ -80,6 +84,33 @@ def verify_registered(config):
                 or audit[0]["pdf_sha256"] != doc["pdf_sha256"] or audit[0]["input_matches_issue"] is not True
                 or audit[0]["pdf_matches_issue"] is not True):
             raise ValueError("Historical input audit differs from registered Print reference")
+
+
+def verify_later_registered(documents):
+    import json
+    from functools import lru_cache
+
+    items = list(documents)
+    if not items:
+        return
+    from registered_print_queue import REGISTRY, explicit_print, fetch
+
+    @lru_cache(maxsize=None)
+    def registry(revision):
+        return {r["sample"]: r for r in json.loads(fetch(revision, REGISTRY))["references"]}
+
+    evidence = lru_cache(maxsize=None)(fetch)
+    for doc in items:
+        revision = doc["reference_revision"]
+        ref = registry(revision)[doc["input"]]
+        if (ref["provenance"] != "desktop_hancom_print"
+                or any(ref[k] != doc[k] for k in ("source_sha256", "pdf", "pdf_sha256", "pages"))
+                or ref["evidence"] != doc["reference_evidence"]):
+            raise ValueError("Later registration differs from the pinned measurement input")
+        raw = evidence(revision, ref["evidence"])
+        if (digest(raw) != doc["reference_evidence_sha256"]
+                or explicit_print(ref, json.loads(raw)) != (doc["hancom"], doc["compat"])):
+            raise ValueError("Later Print evidence or its measurement conditions differ")
 
 
 def measure(upstream, output, stage, config=None):
