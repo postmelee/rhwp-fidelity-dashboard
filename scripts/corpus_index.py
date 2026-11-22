@@ -46,8 +46,8 @@ def build(out, inventory, archive):
     rows = source["rows"]
     if source["source_revision"] != inventory["source_revision"] or len(rows) != inventory["source_paths"]:
         raise ValueError("Wrong corpus inventory")
-    # Bind scores to exactly one archived run. Historical releases stay accessible by run.
-    newest = next((r for r in reversed(archive) if r["corpus_sha"] == source["source_revision"]), None)
+    # Bind scores to one archived run and prefer a scored run for the unfiltered view.
+    newest = None
     scopes = []
     selected = {}
     for record in archive:
@@ -57,8 +57,9 @@ def build(out, inventory, archive):
         scores = scores_for_run(record)
         write_json(out / "measured-paths" / (key + ".json"), scores)
         scopes.append({"key": key, "tag": record["tag"], "sha": record["engine_sha"]})
-        if record is newest:
-            selected = scores
+        if newest is None or any(any(v is not None for v in row["page_median_percent"].values())
+                                 for row in scores.values()):
+            newest, selected = record, scores
     output = []
     for row in rows:
         name = row["path"]

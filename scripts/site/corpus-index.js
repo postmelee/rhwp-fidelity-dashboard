@@ -16,7 +16,8 @@ async function start() {
     if (requested && !data.runs.some(entry => entry.key === requested)) {
         throw new Error("Unknown measurement run");
     }
-    if (requested) run.value = requested;
+    const preferred = data.run_id == null ? null : data.run_id + "-" + data.attempt;
+    if (requested || preferred) run.value = requested || preferred;
     let activeRows = [];
     let generation = 0;
     async function selectRun() {
@@ -64,7 +65,7 @@ async function start() {
         for (const r of rows.slice(offset, offset + 50)) {
             const tr = body.insertRow();
             const axes = r.visual_deferrals.flatMap(x => x.axes.map(axis => axis + " #" + x.issue)).join(", ");
-            const fields = [r.id || r.path_sha256.slice(0, 16), r.root, r.format, r.paths_with_same_blob, r.status, ...["native", "wasm"].map(b => r.page_median_percent[b]?.toFixed(5) ?? "Unmeasured"), r.oracle_state.replaceAll("_", " "), r.resolver_scope, axes || "—"];
+            const fields = [r.id || r.path_sha256.slice(0, 16), r.root, r.format, r.paths_with_same_blob, r.status, ...["native", "wasm"].map(b => r.page_median_percent[b]?.toFixed(5) ?? "Unmeasured"), (r.id ? "Admitted run reference" : r.oracle_state.replaceAll("_", " ")), r.resolver_scope, axes || "—"];
             fields.forEach((value, i) => {
                 const cell = tr.insertCell();
                 cell.dataset.label = labels[i];

@@ -171,6 +171,10 @@ async function test(browser) {
     const rendererRows = scope.locator("tbody tr");
     assert.deepEqual((await rendererRows.nth(0).locator("td").allTextContents()).slice(0, 3), ["Native Skia", "36", "50"]);
     assert.deepEqual((await rendererRows.nth(1).locator("td").allTextContents()).slice(0, 3), ["WASM Canvas2D", "41", "763"]);
+    await scope.getByRole("link", {name: "Browse corpus paths"}).click();
+    await page.locator("#query").fill("registered-4382eabadb86cde5");
+    await page.getByText("1–1 of 1", {exact: true}).waitFor();
+    assert.equal(await page.locator("tbody td").nth(7).innerText(), "Admitted run reference");
 
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
