@@ -20,7 +20,7 @@ jobs:
           repository: edwardkim/rhwp
           ref: 981ce66b4183b13c1a3b5907e04a8969c8c42034
           persist-credentials: false
-          sparse-checkout-cone: false
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
             /scripts/
             /assets/
