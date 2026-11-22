@@ -274,7 +274,7 @@ def run(upstream, corpus, destination, expected_sha, prepared_build=None):
             rows, codes = [], []
             for d in documents:
                 def invoke(smoke):
-                    manifest(corpus)  # Recheck inputs after build and before each comparison.
+                    verify_document_inputs(corpus, d)
                     stage_name = "smoke" if smoke else "full"
                     print(f'Measurement started: {backend}/{d["id"]}/{stage_name}', flush=True)
                     code, base, log = sweep_document(upstream, corpus, work, backend, d, smoke)
