@@ -201,7 +201,7 @@ body.dashboard {
 .coverage-card b { font-size: 1.05rem; }
 .coverage-card small { margin-top: auto; color: var(--muted); font-size: .8rem; }
 .coverage-card progress { display: block; width: 100%; height: .55rem; accent-color: var(--accent); }
-.revision-grid { margin-block: 1rem; }
+.revision-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 0 1rem; }
 .revision-card { background: white; text-decoration: none; color: var(--ink); }
 .revision-card b { color: var(--accent); }
 .revision-card strong { font-size: 1.08rem; }

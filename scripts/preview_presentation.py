@@ -465,7 +465,7 @@ def studio_screen_evidence(out):
             + transition_scope(out, report))
 
 
-def corpus_measurement_panel(inventory, groups, runs, *, overview=False):
+def corpus_measurement_panel(inventory, groups, runs, *, view="renderers"):
     total = inventory["source_paths"]
     sections = []
     for sha, tag, _ in groups:
@@ -481,7 +481,7 @@ def corpus_measurement_panel(inventory, groups, runs, *, overview=False):
             scores = [f"{values[k]:.5f}" if values.get(k) is not None else "Unmeasured"
                       for k in ("median", "p10", "min")]
             rows.append([title, values.get("measured_docs", 0), values.get("measured_pages", 0), *scores])
-        if not overview:
+        if view == "renderers":
             rows.extend([[title, 0, 0, "Unmeasured", "Unmeasured", "Unmeasured"]
                          for title in ("WASM CanvasKit", "Render IR output")])
         score_link = f'<a class="action primary" href="cohort-{run_key}.html">Document and page scores</a>' if run_key else ""
@@ -495,12 +495,18 @@ def corpus_measurement_panel(inventory, groups, runs, *, overview=False):
                     f'<div class="coverage-card"><span>Measurement target</span><b>{target}</b>'
                     + (f'<small>{run["paired_pages"]:,} paired pages · <a href="cohort-{run_key}.html">Run {run_key}</a></small>'
                        if run else "") + '</div></div>')
+        actions = f'<div class="actions">{score_link}<a class="action" href="{inventory_url}">Browse corpus paths</a></div>'
+        if view == "documents":
+            sections.append(f'<section class="surface" data-release="{sha}" data-preferred="true">'
+                            f'<div class="surface-heading"><h3>Browse results</h3>'
+                            f'<span class="revision-label">{esc(tag)} · {esc(sha[:8])}</span></div>'
+                            f'<p>{target}</p>{actions}</section>')
+            continue
         sections.append(f'<section class="surface" data-release="{sha}" data-preferred="true"><div class="surface-heading">'
                         f'<h3>Hancom Print fidelity</h3><span class="revision-label">{esc(tag)} · {esc(sha[:8])}</span></div>'
-                        + coverage + table("Fidelity among scored pages · 96 DPI silhouette",
+                        + coverage + actions + table("Fidelity among scored pages · 96 DPI silhouette",
                                           ["Output path", "Completed paths", "Scored pages", "Median (%)",
                                            "P10 (%)", "Minimum (%)"], rows, cards=True)
-                        + f'<div class="actions">{score_link}<a class="action" href="{inventory_url}">Browse corpus paths</a></div>'
                         + '</section>')
     return "".join(sections)
 
@@ -545,14 +551,15 @@ def render_site(out, records, docs, inventory, cohort_panel="", pr_panel=""):
                 groups.append((run["engine_sha"], run["tag"], []))
                 known.add(run["engine_sha"])
     summary = revision_summary(snapshot["release"], cohort_runs, inventory["source_paths"])
-    whole = corpus_measurement_panel(inventory, groups, cohort_runs, overview=True)
+    whole = corpus_measurement_panel(inventory, groups, cohort_runs, view="overview")
     comparison = corpus_measurement_panel(inventory, groups, cohort_runs)
+    documents = corpus_measurement_panel(inventory, groups, cohort_runs, view="documents")
     historical_pr_pages(out)
     panes = {
-        "overview": whole + summary + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + '<div class="surface inventory-summary">' + inventory_section(inventory) + '</div>' + overview(records, docs, snapshot["release"], groups),
+        "overview": summary + whole + '<p id="receipt-run-state" aria-live="polite">Live execution status is available in the <a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/workflows/receipt-cohort.yml">measurement workflow</a>.</p>' + '<div class="surface inventory-summary">' + inventory_section(inventory) + '</div>' + overview(records, docs, snapshot["release"], groups),
         "renderers": (comparison + '<h3>Smoke regression · four-document suite</h3>' + run_views(groups, docs, "compare", renderer_tables)
                       + studio_screen_evidence(out)),
-        "documents": (whole + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
+        "documents": (documents + '<p>Default order · Absolute score gap ↓ &nbsp;|&nbsp; Gap scale · −100 to +100 pp</p>'
                       + run_views(groups, docs, "document", document_table)),
         "history": cohort_panel + history_view(records, observations) + pr_panel + '<p><a href="pr-9024.html">Historical PR #9024 · 763 paired HWPX pages</a></p>',
         "methods": methods() + "".join(
