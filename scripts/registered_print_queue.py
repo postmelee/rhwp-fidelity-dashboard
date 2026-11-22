@@ -12,7 +12,6 @@ import pypdfium2
 
 from core import SHA, match, read_json, write_json
 from corpus_inventory import REV
-from track_cohort import tracked_config
 
 REGISTRY = "tests/fixtures/oracle_page_count_verified_references.json"
 LIMIT = 32 * 1024 * 1024
@@ -34,7 +33,7 @@ def explicit_print(registered, evidence):
     """Return conditions only for an exact linked output in a known evidence format."""
     expected = (registered["pdf"], registered["pdf_sha256"], registered["pages"])
     source = registered["source_sha256"]
-    if isinstance(evidence, dict) and "datasets" in evidence:
+    if isinstance(evidence, dict) and isinstance(evidence.get("datasets"), dict):
         for dataset in evidence["datasets"].values():
             original = dataset.get("input", {})
             if original.get("sha256") != source:
@@ -44,7 +43,7 @@ def explicit_print(registered, evidence):
                     return print_record.get("engine"), print_record.get("compat")
     if isinstance(evidence, list):
         for row in evidence:
-            output = row["output"]
+            output = row.get("output", {})
             if (row.get("input_sha256") == source
                     and tuple(row.get(k) for k in ("file", "sha256", "pages")) == expected
                     and output.get("input_preprocess") == "none"
@@ -65,6 +64,8 @@ def explicit_print(registered, evidence):
 
 
 def audit(revision, worklist):
+    from track_cohort import tracked_config
+
     if worklist["revision"] != REV:
         raise ValueError("Wrong source inventory revision")
     tasks = {r["path"]: r for r in worklist["tasks"]}
