@@ -148,7 +148,11 @@ async function test(browser) {
     await page.locator("#query").fill("samples/issue8573/empty-host-split-table.hwp");
     await page.getByText("1–1 of 1", {exact: true}).waitFor();
     assert.equal(await page.locator("tbody tr").count(), 1);
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth
+        ? [...document.querySelectorAll("main *")].filter(node => node.getBoundingClientRect().right > innerWidth)
+            .map(node => node.tagName + "#" + node.id).slice(0, 12)
+        : []);
+    assert.deepEqual(overflow, []);
 
     await page.goto(base);
     const coverage = page.locator("#overview .coverage-main:visible");
@@ -164,9 +168,9 @@ async function test(browser) {
     const scope = page.locator("#overview .surface:visible").first();
     assert.equal(await scope.getByRole("link", {name: "Browse corpus paths"}).getAttribute("href"),
         "corpus-index.html?run=44967062895-1");
-    const rendererRows = await scope.locator("tbody tr").allTextContents();
-    assert.match(rendererRows[0], /Native Skia3650/);
-    assert.match(rendererRows[1], /WASM Canvas2D41763/);
+    const rendererRows = scope.locator("tbody tr");
+    assert.deepEqual((await rendererRows.nth(0).locator("td").allTextContents()).slice(0, 3), ["Native Skia", "36", "50"]);
+    assert.deepEqual((await rendererRows.nth(1).locator("td").allTextContents()).slice(0, 3), ["WASM Canvas2D", "41", "763"]);
 
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
