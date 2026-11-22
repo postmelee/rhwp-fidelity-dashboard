@@ -42,6 +42,7 @@ jobs:
           PYTHONPATH="scripts:$RUNNER_TEMP/pdfcheck" python3 - <<'PY'
           import hashlib
           import urllib.request
+          from urllib.parse import quote
           import pypdfium2
           from receipt_cohort import verify_registered
           from track_cohort import tracked_config
@@ -52,7 +53,10 @@ jobs:
               if "reference_evidence" not in row:
                   continue
               for path, key in (("input", "source_sha256"), ("pdf", "pdf_sha256")):
-                  with urllib.request.urlopen(base + row[path], timeout=60) as stream:
+                  origin = base
+                  if path == "pdf" and "reference_revision" in row:
+                      origin = "https://raw.githubusercontent.com/edwardkim/rhwp/" + row["reference_revision"] + "/"
+                  with urllib.request.urlopen(origin + quote(row[path]), timeout=60) as stream:
                       data = stream.read(32 * 1024 * 1024 + 1)
                   assert len(data) <= 32 * 1024 * 1024 and hashlib.sha256(data).hexdigest() == row[key]
                   if path == "pdf":
