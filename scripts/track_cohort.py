@@ -35,6 +35,18 @@ def select(previous, candidates, config, retry_devel=False):
     return retry or ("", "")
 
 
+def select_stable(previous, tags, config, resolve=resolve_ref):
+    if not tags:
+        raise ValueError("No stable release")
+    # Finish the current stable release before opening the historical backlog.
+    current = tags[-1]
+    selected = select(previous, ((current, resolve(current)[0]),), config)
+    if selected[0]:
+        return selected
+    backlog = ((tag, resolve(tag)[0]) for tag in tags[:-1])
+    return select(previous, backlog, config)
+
+
 def archive_docs(config):
     return [{**{k: d[k] for k in ("id", "pages", "source_sha256", "pdf_sha256")},
              "path_sha256": digest(d["input"].encode())} for d in config["documents"]]
@@ -109,8 +121,10 @@ def plan(track):
     elif track == "devel":
         candidates = [("devel", api("commits/devel")["sha"])]
     else:
-        candidates = ((r["tag_name"], resolve_ref(r["tag_name"])[0]) for r in stable_releases())
-    tag, sha = select(previous, candidates, config, os.environ.get("RETRY_DEVEL") == "true")
+        tag, sha = select_stable(previous, [r["tag_name"] for r in stable_releases()], config)
+        candidates = None
+    if candidates is not None:
+        tag, sha = select(previous, candidates, config, os.environ.get("RETRY_DEVEL") == "true")
     links = release_sources(dict(config, tag=tag, engine_sha=sha), previous, target_locks()) if sha else {}
     with open(os.environ["GITHUB_OUTPUT"], "a") as dst:
         for stage in STAGES:

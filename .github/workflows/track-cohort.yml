@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cohort-track-${{ github.event.pull_request.number || inputs.track || (github.event_name == 'push' && 'baseline') || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+  group: cohort-track-${{ github.event.pull_request.number || inputs.track || ((github.event_name == 'push' || github.event.schedule == '47 1 * * *') && 'stable' || 'devel') }}
   cancel-in-progress: false
 jobs:
   preview:
@@ -80,7 +80,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RETRY_DEVEL: ${{ inputs.retry_devel }}
-          TRACK: ${{ inputs.track || (github.event.schedule == '47 1 * * *' && 'stable' || 'devel') }}
+          TRACK: ${{ inputs.track || ((github.event_name == 'push' || github.event.schedule == '47 1 * * *') && 'stable' || 'devel') }}
         run: python3 scripts/track_cohort.py plan
   measure:
     needs: plan
