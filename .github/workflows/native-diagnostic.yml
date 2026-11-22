@@ -1,0 +1,77 @@
+name: Diagnose Native Skia registered Print inputs
+on:
+  pull_request:
+    paths: ['scripts/adapter.py', 'scripts/native_diagnostic.py', '.github/workflows/native-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: dashboard
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: upstream
+          repository: edwardkim/rhwp
+          ref: 981ce66b4183b13c1a3b5907e04a8969c8c42034
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/
+            /assets/
+            /ttfs/
+            /samples/
+            /rhwp-studio/public/fonts/
+            /rhwp-studio/public/font-rules/
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Verify the published v0.9.1 Native Skia executable
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
+          archive="$RUNNER_TEMP/rhwp-release.tar.gz"
+          curl --fail --silent --show-error --location --max-time 120 \
+            'https://github.com/edwardkim/rhwp/releases/download/v0.9.1/rhwp-v0.9.1-linux-x86_64.tar.gz' -o "$archive"
+          printf '%s  %s\n' '9283dd9ecd3182ddb50eeba9a2f26d2d23b5386e39defb081e52a3706916e65d' "$archive" | sha256sum --check
+          mkdir -p upstream/target/release
+          tar -xOzf "$archive" rhwp/rhwp > upstream/target/release/rhwp
+          chmod +x upstream/target/release/rhwp
+          sha256sum upstream/target/release/rhwp
+          upstream/target/release/rhwp export-png --help > "$RUNNER_TEMP/export-help.txt"
+          grep -F -- '--metadata-only' "$RUNNER_TEMP/export-help.txt"
+      - name: Reproduce without Brotli
+        run: |
+          python -m venv "$RUNNER_TEMP/print-env"
+          tool="$RUNNER_TEMP/print-env/bin/python"
+          "$tool" -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          "$tool" -c 'from fontTools.ttLib import woff2; assert not woff2.haveBrotli'
+          "$tool" dashboard/scripts/native_diagnostic.py upstream native-before | tee before.log
+      - name: Re-run the same inputs and executable with Brotli
+        run: |
+          tool="$RUNNER_TEMP/print-env/bin/python"
+          "$tool" -m pip install Brotli==1.2.0
+          "$tool" -c 'from fontTools.ttLib import woff2; assert woff2.haveBrotli'
+          "$tool" dashboard/scripts/native_diagnostic.py upstream native-after | tee after.log
+          "$tool" - <<'PY'
+          import json
+          from pathlib import Path
+          def observations(filename):
+              rows = [json.loads(line.removeprefix("Native diagnostic "))
+                      for line in Path(filename).read_text().splitlines()
+                      if line.startswith("Native diagnostic ")]
+              return {row["id"]: row for row in rows}
+          before, after = map(observations, ("before.log", "after.log"))
+          assert before and before.keys() == after.keys()
+          previously_failed = {key for key, row in before.items() if "woff2-brotli" in row["signals"]}
+          assert previously_failed, "The missing WOFF2 decoder was not reproduced"
+          assert all(after[key].get("state") == "complete" and after[key].get("score") is not None
+                     for key in previously_failed), "One or more WOFF2 failures persist after the dependency fix"
+          assert all(after[key].get("score") == row["score"] for key, row in before.items() if "score" in row)
+          print("Confirmed Native Skia recovery on first page:", len(previously_failed))
+          PY

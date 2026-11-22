@@ -48,7 +48,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
-          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          python3 -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1 Brotli==1.2.0
           rustup target add wasm32-unknown-unknown
           cargo install wasm-pack --version 0.15.0 --locked
       - name: Stop after the first shard

@@ -26,7 +26,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libfreetype6-dev poppler-utils
-          python -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1
+          python -m pip install Pillow==11.3.0 pypdfium2==5.13.0 fonttools==4.60.1 Brotli==1.2.0
           cd upstream
           cargo build --release --locked --bin rhwp --features native-skia
       - run: python dashboard/scripts/cache_pilot.py upstream

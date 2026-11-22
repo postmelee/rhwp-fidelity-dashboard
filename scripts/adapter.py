@@ -87,6 +87,82 @@ def consume(base, document, selected=False, backend=None):
     return row
 
 
+def sweep_document(upstream, corpus, work, backend, document, smoke):
+    out = work / backend / ("smoke" if smoke else "full") / document["id"]
+    args = [sys.executable, "scripts/visual_sweep.py", "--silhouette-only", "--rasterizer", "png",
+            "--dpi", "96", "--compat", document["compat"], "--rhwp-bin", str(upstream / "target/release/rhwp"),
+            "--out", str(out), "--file-target", document["id"],
+            str(safe_file(corpus, document["document"]["path"])),
+            str(safe_file(corpus, document["golden"]["path"]))]
+    environment = document["font_environment"]["path"]
+    if environment is not None:
+        args += ["--font-environment", str(safe_file(corpus, environment))]
+    for directory in sorted({str(safe_file(corpus, font["path"]).parent) for font in document["fonts"]}):
+        args += ["--font-path", directory]
+    if backend == "wasm":
+        args += ["--wasm-pkg", str(upstream / "pkg")]
+    if smoke:
+        args += ["--page", "1"]
+    stage = "smoke" if smoke else "full"
+    log = work / f'{backend}-{document["id"]}-{stage}.log'
+    return command(args, upstream, log), out / document["id"], log
+
+
+def sweep_diagnosis(base, log):
+    """Report bounded producer signals without publishing raw logs or document content."""
+    result = {}
+    for leaf in ("run_manifest.json", "silhouette_manifest.json", "manifest.json",
+                 "native-export.json", "wasm-export-complete.json", "native-png-metadata.log"):
+        result[leaf] = (base / leaf).is_file()
+    reasons = {"native_webfont_preparation_failed", "raster_export_failed",
+               "invalid_embedded_font", "unavailable_document_page_counts"}
+    states = {"complete", "incomplete", "failed"}
+    failures = set()
+    for part in sorted((base / "silhouette-parts").glob("p[0-9]*-[0-9]*/manifest.json")):
+        try:
+            candidate = read_json(part).get("pr_review_gate", {}).get("reason")
+            failures.add(candidate if candidate in reasons else "other")
+        except (OSError, ValueError, TypeError):
+            failures.add("unreadable")
+    result["part_failure_reasons"] = sorted(failures)
+    if result["silhouette_manifest.json"]:
+        try:
+            state = read_json(base / "silhouette_manifest.json").get("run_state")
+            result["state"] = state if state in states else "unknown"
+        except (OSError, ValueError, TypeError):
+            result["state"] = "unreadable"
+    with log.open("rb") as stream:
+        stream.seek(max(0, log.stat().st_size - 65536))
+        tail = stream.read().decode(errors="replace")
+    markers = {
+        "native-webfont-preparation": "Native 웹폰트 준비 실패:",
+        "native-font-plan": "Native 글꼴 준비 명령 실패:",
+        "missing-font-file": "프로젝트 웹폰트가 없습니다:",
+        "font-digest-mismatch": "고정 웹폰트 해시가 다릅니다:",
+        "font-invalid-redirect": "웹폰트가 허용되지 않은 서버로",
+        "embedded-font-selection": "문서 내장 글꼴의 선택 face를 공급할 수 없습니다",
+        "font-face-metadata": "공급 face의 family 이름을 해독할 수 없습니다",
+        "woff2-brotli": "No module named brotli",
+        "font-supply-url": "고정되지 않은 웹폰트 공급 URL:",
+        "font-supply-too-large": "웹폰트 크기가 허용 범위 밖입니다",
+        "font-unicode-cmap": "웹폰트 이름 또는 Unicode cmap이 없습니다",
+        "file-not-found": "FileNotFoundError:",
+        "decode": "UnicodeDecodeError:",
+        "value-error": "ValueError:",
+        "type-error": "TypeError:",
+        "subprocess-failure": "CalledProcessError:",
+        "size-or-space": "No space left on device",
+        "font-http-error": "HTTPError:",
+        "http-403": "HTTP Error 403",
+        "http-404": "HTTP Error 404",
+        "http-429": "HTTP Error 429",
+        "native-page-outputs": "Native PNG 요청 쪽의 산출물이 누락됐거나",
+        "native-render-tree": "Native PNG와 같은 문서의 render tree가 누락됐습니다",
+    }
+    result["signals"] = [label for label, fragment in markers.items() if fragment in tail]
+    return result
+
+
 def materialize(root, documents):
     """Fetch only hash-pinned approved assets into ignored, disposable corpus/cache."""
     assets = {}
@@ -190,8 +266,6 @@ def run(upstream, corpus, destination, expected_sha, prepared_build=None):
                                      cwd=upstream, capture_output=True, timeout=60)
         if help_result.returncode or not all(f.encode() in help_result.stdout for f in REQUIRED):
             raise ValueError("runtime CLI contract failed")
-        binary = upstream/"target/release/rhwp"
-        package = upstream/"pkg"
         result["build_sha256"] = build_identity(upstream)
         if not result["build_sha256"] or (reuse and result["build_sha256"] != prepared_build):
             raise ValueError("Built output changed before measurement")
@@ -201,25 +275,12 @@ def run(upstream, corpus, destination, expected_sha, prepared_build=None):
             for d in documents:
                 def invoke(smoke):
                     manifest(corpus)  # Recheck inputs after build and before each comparison.
-                    out = work/backend/("smoke" if smoke else "full")/d["id"]
-                    args = [sys.executable, "scripts/visual_sweep.py",
-                            "--silhouette-only", "--rasterizer", "png", "--dpi", "96",
-                            "--compat", d["compat"], "--rhwp-bin", str(binary),
-                            "--out", str(out), "--file-target", d["id"],
-                            str(safe_file(corpus, d["document"]["path"])),
-                            str(safe_file(corpus, d["golden"]["path"]))]
-                    if d["font_environment"]["path"] is not None:
-                        args += ["--font-environment", str(safe_file(corpus, d["font_environment"]["path"]))]
-                    for directory in sorted({str(safe_file(corpus, f["path"]).parent) for f in d["fonts"]}):
-                        args += ["--font-path", directory]
-                    if backend == "wasm":
-                        args += ["--wasm-pkg", str(package)]
-                    if smoke:
-                        args += ["--page", "1"]
-                    print("Measurement started: " + backend + "/" + d["id"] + ("/smoke" if smoke else "/full"), flush=True)
-                    code = command(args, upstream, work/f"{backend}-{d['id']}-{'smoke' if smoke else 'full'}.log")
-                    print("Measurement process exited: " + backend + "/" + d["id"] + " code=" + str(code), flush=True)
-                    base = out/d["id"]
+                    stage_name = "smoke" if smoke else "full"
+                    print(f'Measurement started: {backend}/{d["id"]}/{stage_name}', flush=True)
+                    code, base, log = sweep_document(upstream, corpus, work, backend, d, smoke)
+                    print(f'Measurement process exited: {backend}/{d["id"]} code={code}', flush=True)
+                    if not (base / "run_manifest.json").is_file() or not (base / "silhouette_manifest.json").is_file():
+                        print("Sweep diagnosis: " + canonical(sweep_diagnosis(base, log)).decode(), flush=True)
                     row = consume(base, d, selected=smoke, backend=backend)
                     if not smoke:
                         raw = read_json(base/"silhouette_manifest.json")
