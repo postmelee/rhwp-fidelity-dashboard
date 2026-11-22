@@ -54,10 +54,10 @@ Actions의 **Receipt-backed release measurement**를 main에서 수동 실행할
 
 ### 로컬 Hancom Print 영수증으로 추가 경로 측정
 
-측정 전 원본 트리는 인벤토리 커밋 `2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0`에 고정한다. 로컬에서 생성한 PDF를 동일 checkout의 영수증 상대 경로에 두고, upstream `audit_print_pairs.py`가 지원하는 `cases[]` Print 기록을 사용한다. 실행물은 별도 엔진 checkout에서 빌드한다. Linux 측정 도구 설치 버전은 `.github/workflows/receipt-shards.yml`에 있다.
+측정 전 원본 트리는 인벤토리 커밋 `2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0`에 고정한다. 로컬에서 생성한 PDF를 동일 checkout의 영수증 상대 경로에 두고, upstream `audit_print_pairs.py`가 지원하는 `cases[]` Print 기록을 사용한다. 기존 묶음 JSON 또는 upstream 갱신 도구가 `--receipt-dir`에 쌓은 job별 JSON 디렉터리를 지정할 수 있다. 원본과 PDF 경로가 같은 영수증의 내용이 충돌하면 해당 원본에 `conflicting_receipts`를 남겨 검토할 수 있다. 실행물은 별도 엔진 checkout에서 빌드한다. Linux 측정 도구 설치 버전은 `.github/workflows/receipt-shards.yml`에 있다.
 
 ```sh
-prepared=$(python3 scripts/local_print_intake.py "$inventory_checkout" "$receipts_json" "$private_dir/intake" \
+prepared=$(python3 scripts/local_print_intake.py "$inventory_checkout" "$receipts" "$private_dir/intake" \
   --metadata-evidence "$numeric_metadata_approval" --compat 2022)
 python3 scripts/cohort_shards.py "$engine_checkout" "$private_dir/results" \
   --local-corpus "$prepared" --engine-sha "$engine_sha" --pages-per-shard 32
