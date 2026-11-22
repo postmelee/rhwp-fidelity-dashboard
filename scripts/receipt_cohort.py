@@ -93,7 +93,7 @@ def verify_later_registered(documents):
     items = list(documents)
     if not items:
         return
-    from registered_print_queue import REGISTRY, explicit_print, fetch
+    from registered_print_queue import REGISTRY, explicit_print, fetch, reviewed_print_note
 
     @lru_cache(maxsize=None)
     def registry(revision):
@@ -108,9 +108,16 @@ def verify_later_registered(documents):
                 or ref["evidence"] != doc["reference_evidence"]):
             raise ValueError("Later registration differs from the pinned measurement input")
         raw = evidence(revision, ref["evidence"])
-        if (digest(raw) != doc["reference_evidence_sha256"]
-                or explicit_print(ref, json.loads(raw)) != (doc["hancom"], doc["compat"])):
-            raise ValueError("Later Print evidence or its measurement conditions differ")
+        if digest(raw) != doc["reference_evidence_sha256"]:
+            raise ValueError("Later Print evidence differs from the pinned evidence")
+        if "print_note" in doc:
+            reviewed = reviewed_print_note(revision, ref, evidence)
+            actual = ((reviewed[0], reviewed[1]) if reviewed and all(doc.get(k) == v for k, v in reviewed[2].items())
+                      else None)
+        else:
+            actual = explicit_print(ref, json.loads(raw))
+        if actual != (doc["hancom"], doc["compat"]):
+            raise ValueError("Later Print measurement conditions differ")
 
 
 def measure(upstream, output, stage, config=None):

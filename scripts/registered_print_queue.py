@@ -14,6 +14,7 @@ from corpus_inventory import REV
 
 REGISTRY = "tests/fixtures/oracle_page_count_verified_references.json"
 LIMIT = 32 * 1024 * 1024
+REVIEWED_NOTES = Path(__file__).resolve().parents[1] / "corpus/print-reference-notes.json"
 
 
 def fetch(revision, name):
@@ -60,6 +61,23 @@ def explicit_print(registered, evidence):
                 and output.get("hancom_version")):
             return output["engine"], "2022"
     return None
+
+
+def reviewed_print_note(revision, registered, read):
+    """Validate a specifically reviewed upstream text record without inferring its provenance."""
+    reviews = read_json(REVIEWED_NOTES)
+    if reviews["revision"] != revision:
+        return None
+    entry = next((r for r in reviews["entries"] if r["registered"] == registered), None)
+    if entry is None:
+        return None
+    note = read(revision, entry["note"])
+    body = note.decode("utf-8")
+    if not entry["markers"] or any(marker not in body for marker in entry["markers"]):
+        raise ValueError("Reviewed Print details changed")
+    return entry["hancom"], entry["compat"], {
+        "print_note": entry["note"], "print_note_sha256": hashlib.sha256(note).hexdigest(),
+    }
 
 
 def acquisition_plan(worklist, ready):
@@ -133,6 +151,12 @@ def audit(revision, worklist):
                 evidence_cache[evidence_path] = fetch(revision, evidence_path)
             evidence_raw = evidence_cache[evidence_path]
             conditions = explicit_print(ref, json.loads(evidence_raw)) if evidence_path.endswith(".json") else None
+            note_data = {}
+            if conditions is None:
+                reviewed = reviewed_print_note(revision, ref, fetch)
+                if reviewed:
+                    hancom, compat, note_data = reviewed
+                    conditions = hancom, compat
             if not conditions or not conditions[0] or conditions[1] not in ("2022", "2024"):
                 detail["status"] = "print_conditions_review"
                 continue
@@ -157,7 +181,7 @@ def audit(revision, worklist):
                          "source_sha256": ref["source_sha256"], "pdf": ref["pdf"], "pdf_sha256": ref["pdf_sha256"],
                          "pages": ref["pages"], "reference_revision": revision, "reference_evidence": evidence_path,
                          "reference_evidence_sha256": hashlib.sha256(evidence_raw).hexdigest(),
-                         "hancom": conditions[0], "compat": conditions[1]})
+                         "hancom": conditions[0], "compat": conditions[1], **note_data})
     return {"source_revision": REV, "reference_revision": revision, "registry": REGISTRY,
             "status_counts": dict(Counter(row["status"] for row in reports)),
             "rows": reports, "admitted": admitted,
@@ -174,3 +198,5 @@ if __name__ == "__main__":
     write_json(args.output, report)
     print("Print registration audit:", report["status_counts"], flush=True)
     print("Acquisition queue:", report["acquisition"]["counts"], flush=True)
+    for entry in report["admitted"][:20]:
+        print("Verified reference:", json.dumps(entry, ensure_ascii=False, separators=(",", ":")), flush=True)
