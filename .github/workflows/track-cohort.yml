@@ -2,7 +2,7 @@ name: Track receipt cohort
 on:
   push:
     branches: [main]
-    paths: ['corpus/track-additions.json', 'scripts/track_cohort.py']
+    paths: [corpus/track-additions.json]
   schedule:
     - cron: '23 */4 * * *'
     - cron: '47 1 * * *'
