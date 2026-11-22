@@ -116,6 +116,36 @@ def acquisition_plan(worklist, ready):
             "ready_distinct_source_bytes": len(verified_hashes), "queue": queue}
 
 
+def alias_evidence(worklist, acquisition, ready):
+    """Identify which existing receipt could cover a byte-identical source path."""
+    by_path = {row["path"]: row for row in worklist["tasks"]}
+    pairs = []
+    for row in acquisition["queue"]["review_same_bytes_reference"]:
+        possible = []
+        for item in ready:
+            original = by_path[item["input"]]
+            if (item["source_sha256"] != row["source_sha256"] or
+                    original["source_blob"] != row["source_blob"]):
+                continue
+            possible.append({"path": item["input"], "pdf": item["pdf"],
+                             "pdf_sha256": item["pdf_sha256"], "pages": item["pages"],
+                             "compat": item.get("compat", "2022"), "hancom": item["hancom"],
+                             "reference_revision": item.get("reference_revision", REV)})
+        if not possible:
+            raise ValueError("Matching source bytes lack a pinned Git blob identity")
+        recipes = {(p["pdf_sha256"], p["compat"], p["hancom"], p["pages"]) for p in possible}
+        other = sorted({p["path"] for p in row["pdf_candidates"]} - {p["pdf"] for p in possible})
+        state = "single_reference"
+        if len(recipes) > 1:
+            state = "conflicting_recipes"
+        elif other:
+            state = "existing_pdf_review"
+        pairs.append({"path": row["path"], "source_sha256": row["source_sha256"],
+                      "source_blob": row["source_blob"], "status": state,
+                      "references": possible, "other_pdf_candidates": other})
+    return pairs
+
+
 def audit(revision, worklist):
     import pypdfium2
     from track_cohort import tracked_config
@@ -182,10 +212,12 @@ def audit(revision, worklist):
                          "pages": ref["pages"], "reference_revision": revision, "reference_evidence": evidence_path,
                          "reference_evidence_sha256": hashlib.sha256(evidence_raw).hexdigest(),
                          "hancom": conditions[0], "compat": conditions[1], **note_data})
+    ready = tracked + admitted
+    acquisition = acquisition_plan(worklist, ready)
     return {"source_revision": REV, "reference_revision": revision, "registry": REGISTRY,
             "status_counts": dict(Counter(row["status"] for row in reports)),
             "rows": reports, "admitted": admitted,
-            "acquisition": acquisition_plan(worklist, [*tracked, *admitted])}
+            "acquisition": acquisition, "alias_review": alias_evidence(worklist, acquisition, ready)}
 
 
 if __name__ == "__main__":

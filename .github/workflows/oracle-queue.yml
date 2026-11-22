@@ -42,6 +42,18 @@ jobs:
           python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/intake-deps"
           PYTHONPATH="$RUNNER_TEMP/intake-deps" python3 dashboard/scripts/registered_print_queue.py \
             93e861523623bcd84d57b808edb62af5af2aa82a worklist.json registered-print.json
+      - name: Check evidence for same-byte reference reuse
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("registered-print.json").read_bytes())
+          aliases = report["alias_review"]
+          assert len(aliases) == report["acquisition"]["counts"]["review_same_bytes_reference"]
+          assert len({row["path"] for row in aliases}) == len(aliases)
+          for row in aliases[:10]:
+              print("Alias scope:", json.dumps(row, ensure_ascii=False))
+          PY
       - name: Prepare real local Print inputs and keep a changed digest unmeasured
         run: |
           PYTHONPATH="dashboard/scripts:$RUNNER_TEMP/intake-deps" python3 - <<'PY'
