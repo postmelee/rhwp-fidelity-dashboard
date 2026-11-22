@@ -55,8 +55,10 @@ def verify_receipt(config):
 
 def verify_registered(config):
     import json
-    verify_later_registered(d for d in config["documents"] if "reference_revision" in d)
-    extra = [d for d in config["documents"] if "reference_evidence" in d and "reference_revision" not in d]
+    verify_reference_aliases(config)
+    docs = [d for d in config["documents"] if "reference_alias_of" not in d]
+    verify_later_registered(d for d in docs if "reference_revision" in d)
+    extra = [d for d in docs if "reference_evidence" in d and "reference_revision" not in d]
     if not extra:
         return
     base = "https://raw.githubusercontent.com/edwardkim/rhwp/" + config["corpus_sha"] + "/"
@@ -84,6 +86,22 @@ def verify_registered(config):
                 or audit[0]["pdf_sha256"] != doc["pdf_sha256"] or audit[0]["input_matches_issue"] is not True
                 or audit[0]["pdf_matches_issue"] is not True):
             raise ValueError("Historical input audit differs from registered Print reference")
+
+
+def verify_reference_aliases(config):
+    """Bind an alias to an already verified reference and identical input conditions."""
+    source_docs = {r["id"]: r for r in config["documents"] if "reference_alias_of" not in r}
+    for alias in config["documents"]:
+        if "reference_alias_of" not in alias:
+            continue
+        original = source_docs.get(alias["reference_alias_of"])
+        if original is None:
+            raise ValueError("Missing independently verified original for the alias")
+        if alias["input"] == original["input"] or Path(alias["input"]).name != Path(original["input"]).name:
+            raise ValueError("Alias must name a different pinned path with the same basename")
+        retained = {k: v for k, v in alias.items() if k not in ("id", "input", "reference_alias_of")}
+        if retained != {k: v for k, v in original.items() if k not in ("id", "input")}:
+            raise ValueError("Alias changed the original input digest or Print conditions")
 
 
 def verify_later_registered(documents):
