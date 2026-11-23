@@ -66,9 +66,9 @@ def explicit_print(registered, evidence):
 def reviewed_print_note(revision, registered, read):
     """Validate a specifically reviewed upstream text record without inferring its provenance."""
     reviews = read_json(REVIEWED_NOTES)
-    if reviews["revision"] != revision:
-        return None
-    entry = next((r for r in reviews["entries"] if r["registered"] == registered), None)
+    entry = next((r for r in reviews["entries"]
+                  if r.get("revision", reviews["revision"]) == revision
+                  and r["registered"] == registered), None)
     if entry is None:
         return None
     note = read(revision, entry["note"])
