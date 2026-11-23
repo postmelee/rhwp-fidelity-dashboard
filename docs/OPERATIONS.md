@@ -66,6 +66,10 @@ python3 scripts/cohort_shards.py "$engine_checkout" "$private_dir/results" \
 `intake.json`은 전체 경로에 영수증 상태를 남긴다. 원본 Git blob과 현재 바이트가 다르거나 유효한 PDF가 복수인 경로는 선택을 보류한다. 준비한 폴더에는 원본과 PDF가 들어 있으므로 로컬에 보관한다. 같은 실행을 다시 시작하면 쪽 범위·실행물·환경이 일치하는 완료 샤드를 재사용한다. `plan.json`, `status.json`, `shard-*.json`에서 해당 엔진의 실행 범위와 수치를 검토할 수 있다. 이 명령은 결과를 공개 원장에 전송하지 않는다.
 
 
+### 추적 코호트의 샤드 실행과 재개 점검
+
+Actions의 **Verify receipt shards**에서 정확한 engine SHA와 `scope=tracked`를 선택하면 현재 추적 코호트의 Print 영수증과 등록 근거를 검증하고 모든 문서를 샤드로 실행합니다. 기본 `original`은 기존 Print 영수증 묶음을 사용합니다. 완료 검사기는 선택한 입력 명세에서 문서·backend·쪽 키를 계산하고 샤드 출력이 각 키를 정확히 한 번씩 포함하는지 확인합니다. 예정대로 첫 샤드를 재사용했는지와 같은 생산물·환경으로 실행했는지도 함께 확인합니다. 결과는 수치 artifact로 보관합니다.
+
 ### 과거 안정 릴리즈의 생산기 호환성
 
 Stable Track은 측정 job을 시작하기 전에 태그를 Git 커밋으로 해석하고 현재 Visual Sweep 생산기에 필요한 스크립트와 옵션을 검사합니다. 확인된 누락은 `compatibility/<run>-<attempt>.json`에 기록하고 다음 릴리즈를 확인합니다. 정적 검사를 통과한 릴리즈는 실제 빌드 및 측정으로 진행합니다. 인증·권한, 요청 제한, 시간 초과, API 응답 오류는 이후 시도에서 재확인합니다.
