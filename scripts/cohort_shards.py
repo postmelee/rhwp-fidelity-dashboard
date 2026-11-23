@@ -8,8 +8,11 @@ import subprocess
 import tempfile
 
 import adapter
-from core import PROTOCOL, canonical, digest, manifest, read_json, validate_measurement, write_json
-from receipt_cohort import contract, verify_receipt
+from core import PROTOCOL, SHA, canonical, digest, manifest, match, read_json, validate_measurement, write_json
+from receipt_cohort import contract, verify_receipt, verify_registered
+
+SCOPES = ("original", "tracked")
+DEFAULT_PAGES_PER_SHARD = 8
 
 
 def partitions(documents, pages):
@@ -61,12 +64,35 @@ def completed(saved, identity, docs):
     )
 
 
-def run(repo, folder, budget, limit, engine=None, local_corpus=None):
+def receipt_inputs(scope):
+    if scope == "original":
+        return contract()
+    if scope == "tracked":
+        from track_cohort import tracked_config
+        return contract(tracked_config())
+    raise ValueError("Unknown receipt scope")
+
+
+def make_plan(sha, config, docs, budget, scope):
+    groups = list(partitions(docs, budget))
+    producer = digest(canonical({f: digest(Path(__file__).with_name(f).read_bytes())
+                                 for f in ("adapter.py", "core.py", "receipt_cohort.py", "cohort_shards.py")}))
+    plan = {"engine_sha": match(SHA, sha), "cohort_sha256": digest(canonical(config)),
+            "protocol": PROTOCOL, "producer_sha256": producer, "scope": scope,
+            "pages_per_shard": budget, "shards": [[d["id"] for d in group] for group in groups]}
+    return plan, groups
+
+
+def run(repo, folder, budget, limit, engine=None, local_corpus=None, scope="original"):
     import pypdfium2
     if local_corpus is None:
-        config, docs = contract()
+        config, docs = receipt_inputs(scope)
         verify_receipt(config)
+        verify_registered(config)
     else:
+        if scope != "original":
+            raise ValueError("Select a receipt scope or a local Print intake")
+        scope = "local"
         if not engine:
             raise ValueError("Local Print batches require an explicit engine SHA")
         docs = manifest(local_corpus, verify=False)["documents"]
@@ -79,12 +105,8 @@ def run(repo, folder, budget, limit, engine=None, local_corpus=None):
     if sha != (engine or config["engine_sha"]):
         raise ValueError("Checkout must match the receipt cohort engine revision")
     # Checkpoints are local to a runner boot and an exact adapter/upstream contract.
-    code = digest(canonical({f: digest(Path(__file__).with_name(f).read_bytes())
-                             for f in ("adapter.py", "core.py", "receipt_cohort.py", "cohort_shards.py")}))
     boot = digest(Path("/proc/sys/kernel/random/boot_id").read_bytes())
-    groups = list(partitions(docs, budget))
-    plan = {"engine_sha": sha, "cohort_sha256": digest(canonical(config)), "protocol": PROTOCOL,
-            "producer_sha256": code, "shards": [[d["id"] for d in g] for g in groups]}
+    plan, groups = make_plan(sha, config, docs, budget, scope)
     root = folder / digest(canonical(plan))
     root.mkdir(parents=True, exist_ok=True)
     with (root / "run.lock").open("a") as lock:
@@ -145,10 +167,12 @@ if __name__ == "__main__":
     parser.add_argument("work", type=Path)
     parser.add_argument("--engine-sha", help="Exact target engine SHA (defaults to the cohort release)")
     parser.add_argument("--local-corpus", type=Path, help="Directory prepared by local_print_intake.py")
-    parser.add_argument("--pages-per-shard", type=int, default=8)
+    parser.add_argument("--scope", choices=SCOPES, default="original", help="Original receipt set or current tracked cohort")
+    parser.add_argument("--pages-per-shard", type=int, default=DEFAULT_PAGES_PER_SHARD)
     parser.add_argument("--max-new-shards", type=int)
     args = parser.parse_args()
     if args.max_new_shards is not None and args.max_new_shards < 0:
         parser.error("max-new-shards must be nonnegative")
-    done = run(args.upstream.resolve(), args.work.resolve(), args.pages_per_shard, args.max_new_shards, args.engine_sha, args.local_corpus)
+    done = run(args.upstream.resolve(), args.work.resolve(), args.pages_per_shard,
+               args.max_new_shards, args.engine_sha, args.local_corpus, args.scope)
     raise SystemExit(0 if done else 2)

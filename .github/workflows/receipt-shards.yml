@@ -1,13 +1,18 @@
 name: Verify receipt shards
 on:
   pull_request:
-    paths: ['scripts/cohort_shards.py', 'scripts/check_shard_replay.py', '.github/workflows/receipt-shards.yml']
+    paths: ['scripts/cohort_shards.py', 'scripts/check_shard_replay.py', 'tests/test_shard_coverage.py', '.github/workflows/receipt-shards.yml']
   workflow_dispatch:
     inputs:
       engine_sha:
         description: Exact upstream engine commit
         required: true
         default: '2480af27df441ffd199cc24602afddbd2d13dcfe'
+      scope:
+        description: Original Print receipt set or current tracked receipt cohort
+        type: choice
+        options: [original, tracked]
+        default: original
 permissions:
   contents: read
 jobs:
@@ -21,15 +26,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: ledger
-          ref: 0aac1f66de68e0f5d81b003ad0ec742447b2df2d
+          ref: 712d71088b1afd68eb6244441ccf8583e48d9dbb
           persist-credentials: false
-      - run: python3 dashboard/scripts/check_shard_replay.py ledger/cohorts/44766813207-1.json
+      - run: |
+          python3 dashboard/scripts/check_shard_replay.py ledger/cohorts/44766813207-1.json
+          python3 dashboard/scripts/check_shard_replay.py ledger/cohorts/45080236986-1.json
   measure:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     env:
       ENGINE_SHA: ${{ inputs.engine_sha || '2480af27df441ffd199cc24602afddbd2d13dcfe' }}
+      RECEIPT_SCOPE: ${{ inputs.scope || 'original' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -54,41 +62,21 @@ jobs:
       - name: Stop after the first shard
         run: |
           status=0
-          python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA" --max-new-shards 1 || status=$?
+          python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA" --scope "$RECEIPT_SCOPE" --max-new-shards 1 || status=$?
           test "$status" -eq 2
           python3 -c 'import glob,json; states=json.load(open(glob.glob("work/*/status.json")[0]))["shards"]; assert states.count("executed")==1 and states.count("pending")==len(states)-1'
       - name: Resume and measure all remaining shards
-        run: python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA"
+        run: python3 dashboard/scripts/cohort_shards.py upstream work --engine-sha "$ENGINE_SHA" --scope "$RECEIPT_SCOPE"
       - name: Check final coverage and restored shard count
         run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          folder, = Path("work").glob("*/plan.json")
-          root = folder.parent
-          groups = json.loads(folder.read_bytes())["shards"]
-          state = json.loads((root / "status.json").read_bytes())["shards"]
-          assert len(groups) == len(state) and state.count("reused") == 1
-          assert set(state) <= {"executed", "reused"}
-          result = set()
-          for index, group in enumerate(groups):
-              shard = json.loads((root / f"shard-{index}.json").read_bytes())
-              for backend, data in shard["measurement"]["backends"].items():
-                  assert {d["id"] for d in data["documents"]} == set(group)
-                  for doc in data["documents"]:
-                      for row in doc["scores"]:
-                          key = (doc["id"], backend, row["page"])
-                          assert key not in result
-                          result.add(key)
-          assert len(result) == 92
-          print(f"{len(groups)} shards, one reused, {len(result)} unique backend-pages")
-          PY
+          python3 dashboard/scripts/check_shard_replay.py --work-dir work --engine-sha "$ENGINE_SHA" --scope "$RECEIPT_SCOPE"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: numeric-shards
           path: |
             work/*/plan.json
+            work/*/checkout.json
             work/*/status.json
             work/*/shard-*.json
           retention-days: 14
