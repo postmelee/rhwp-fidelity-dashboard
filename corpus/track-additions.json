@@ -240,6 +240,51 @@
       "hancom": "desktop Print",
       "reference_evidence": "mydocs/pr/assets/issues7733_7738_20261117/input-audit.json",
       "reference_alias_of": "registered-a033627d1c488172"
+    },
+    {
+      "input": "samples/issue1891/86712_regulatory_analysis.hwpx",
+      "id": "registered-d3be24bfebce8258",
+      "source_sha256": "0f4f055c74a3d39f70e417ca6c700880d9645a202798cd0e5c11f6e32c180a19",
+      "pdf": "pdf/issue7765/regulatory-86712-hwpx-original-print-2024.pdf",
+      "pdf_sha256": "369cf882ad36c1aea27ff4f4ad6fa9d66720d7638a6e8793b0b9b79f75a443f8",
+      "pages": 64,
+      "reference_revision": "321ab8f97791ecf58b56f178f49b7795a836fb79",
+      "reference_evidence": "mydocs/pr/assets/issues7754_7765/source32/README.md",
+      "reference_evidence_sha256": "69180b42a364a4df87fdb8122310bbdd1d8555e67d0fa76fd25dd65032fa0c8f",
+      "hancom": "2024",
+      "compat": "2024",
+      "print_note": "mydocs/pr/assets/issues7754_7765/input-provenance.json",
+      "print_note_sha256": "09249adc7ff8d714dccfd5ad898516a11f65c4c0bb152d9624b8f509c396c217"
+    },
+    {
+      "input": "samples/task1768/distribution_doc.hwpx",
+      "id": "registered-1e111c9626f50729",
+      "source_sha256": "f217c02af7bc2a6641b9544afd29765ddccdd15021507b7554521f68b9d560dc",
+      "pdf": "pdf/issue7642-failed-regression-print-20261015/distribution_doc-2020.pdf",
+      "pdf_sha256": "0299869bf040b01e07a19dde600852e44aec406257916b781eabdfbce6ed5aba",
+      "pages": 3,
+      "reference_revision": "321ab8f97791ecf58b56f178f49b7795a836fb79",
+      "reference_evidence": "mydocs/pr/assets/issues7754_7765/source32/README.md",
+      "reference_evidence_sha256": "69180b42a364a4df87fdb8122310bbdd1d8555e67d0fa76fd25dd65032fa0c8f",
+      "hancom": "2020",
+      "compat": "2022",
+      "print_note": "mydocs/pr/assets/issues7754_7765/input-provenance.json",
+      "print_note_sha256": "09249adc7ff8d714dccfd5ad898516a11f65c4c0bb152d9624b8f509c396c217"
+    },
+    {
+      "input": "samples/task2070/1130000-201900011_D0150004-1-002_2017년기준 시장구조조사.hwp",
+      "id": "registered-b6b0122559c3acbe",
+      "source_sha256": "84d297375c48e1e903247a389e9ec3907e3cdc57a4a7e29a819a01c2a1e3a341",
+      "pdf": "pdf/issue7755/market-2017-manual-print-2024.pdf",
+      "pdf_sha256": "89e32b43af21bde3cf869e76b816d214fa0bc30e3f14512c4c3af184430cd616",
+      "pages": 315,
+      "reference_revision": "321ab8f97791ecf58b56f178f49b7795a836fb79",
+      "reference_evidence": "mydocs/pr/assets/issues7754_7765/source32/README.md",
+      "reference_evidence_sha256": "69180b42a364a4df87fdb8122310bbdd1d8555e67d0fa76fd25dd65032fa0c8f",
+      "hancom": "2024",
+      "compat": "2022",
+      "print_note": "mydocs/pr/assets/issues7754_7765/input-provenance.json",
+      "print_note_sha256": "09249adc7ff8d714dccfd5ad898516a11f65c4c0bb152d9624b8f509c396c217"
     }
   ]
 }

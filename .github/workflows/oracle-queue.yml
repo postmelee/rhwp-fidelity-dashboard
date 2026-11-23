@@ -41,7 +41,7 @@ jobs:
         run: |
           python3 -m pip install pypdfium2==5.13.0 --target "$RUNNER_TEMP/intake-deps"
           PYTHONPATH="$RUNNER_TEMP/intake-deps" python3 dashboard/scripts/registered_print_queue.py \
-            93e861523623bcd84d57b808edb62af5af2aa82a worklist.json registered-print.json
+            321ab8f97791ecf58b56f178f49b7795a836fb79 worklist.json registered-print.json
       - name: Check evidence for same-byte reference reuse
         run: |
           python3 - <<'PY'
