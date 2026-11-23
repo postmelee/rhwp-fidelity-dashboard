@@ -96,7 +96,8 @@ def build(folder, out, inventory):
         rows = [[r["document"], r["page"], shown(r["native"]), shown(r["wasm"]), shown(r["delta"]),
                  " / ".join("?" if p is None else str(p) for p in r["page_counts"]), r["status"]] for r in ordered]
         caption = table("Reference pages · lowest score first", ["Document", "Page", "Native Skia (%)",
-            "WASM Canvas2D (%)", "Native minus WASM (pp)", "Native / WASM / PDF pages", "Native / WASM status"], rows, cards=True)
+            "WASM Canvas2D (%)", "Native minus WASM (pp)", "Native / WASM / PDF pages", "Native / WASM status"],
+            rows, cards=True, row_ids=[f"page-{r['document']}-{r['page']}" for r in ordered])
         stats = table("Page-weighted silhouette (%)", ["Renderer", "Measured pages", "Median", "P10", "Minimum", "Below 90", "Page count mismatches"],
                       [[label, x["measured_pages"], shown(x["median"]), shown(x["p10"]), shown(x["min"]),
                         x["below90"], x["page_count_mismatch"]] for label, x in zip(("Native Skia", "WASM Canvas2D"), (summary["by_backend"][b] for b in BACKENDS))], cards=True)
@@ -111,7 +112,7 @@ def build(folder, out, inventory):
         body = (f'<p>{("Development branch" if tag == "devel" else "Release")} {tag} · <code>{record["engine_sha"][:12]}</code> · Hancom Print · 96 DPI · 2 px</p>'
                 f'<p>Paired documents {summary["paired_docs"]}/{len(record["docs"])} · '
                 f'Paired pages {summary["paired_pages"]}/{len(rows)}. Matching page counts required for score differences.</p>'
-                f'<p><a href="{name}">Numeric record and producer hashes</a> · '
+                f'<p><a id="cohort-record" href="{name}">Numeric record and producer hashes</a> · '
                 f'<a href="https://github.com/postmelee/rhwp-fidelity-dashboard/actions/runs/{record["run_id"]}/attempts/{record["attempt"]}">Measurement run</a> · '
                 f'<a href="https://github.com/edwardkim/rhwp/blob/{record["corpus_sha"]}/{config["receipt"]}">Print receipts</a> · <a href="{registry_url}">Registered reference provenance</a></p>'
                 '<p>Each renderer is compared to its Hancom PDF. Direct backend pixel parity and the original Print font environment are unmeasured.</p>' +
@@ -120,7 +121,14 @@ def build(folder, out, inventory):
                 '<label><input type="checkbox" id="problems"> Failures, missing scores or page count mismatches</label>'
                 '<label><input type="checkbox" id="native-lower"> Native Skia scores below Canvas2D</label> '
                 '<label> Sort <select id="order"><option value="low">Lowest score</option><option value="gap">Largest gap</option>'
-                '<option value="page">Document and page</option></select></label></div><p id="count" aria-live="polite"></p>' + caption)
+                '<option value="page">Document and page</option></select></label></div><p id="count" aria-live="polite"></p>'
+                '<article id="page-handoff" aria-labelledby="page-handoff-title" hidden>'
+                '<h2 id="page-handoff-title" tabindex="-1"></h2>'
+                '<label for="page-handoff-data">Reproduction details</label>'
+                '<textarea id="page-handoff-data" readonly rows="8" style="display:block;width:100%"></textarea>'
+                '<button id="copy-page-handoff" type="button" disabled>Copy reproduction details</button>'
+                ' <a id="page-permalink">Page permalink</a>'
+                '<p id="page-handoff-status" role="status"></p></article>' + caption)
         (out / ("cohort-" + run_key + ".html")).write_text(page("Print measurement · " + tag, body,
             '<script src="cohort.js" defer></script>'))
     archive.sort(key=lambda r: (r["run_id"], r["attempt"]))
