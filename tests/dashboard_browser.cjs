@@ -133,6 +133,13 @@ async function test(browser) {
     assert.deepEqual(errors, []);
 
     await page.goto(base + "#history");
+    await page.getByRole("link", {name: "Historical page preview · PR #9042", exact: true}).click();
+    const earlyReview = page.locator("#reference-page-1");
+    assert.match(await earlyReview.innerText(), /Partial result · page-count mismatch/);
+    assert.match(await earlyReview.innerText(), /26\.64%/);
+    const printEvidence = earlyReview.getByRole("link", {name: "Open Hancom Print PNG at upstream"});
+    assert.match(await printEvidence.getAttribute("href"), /\/blob\/2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0\/.*empty-header-print-p001\.png$/);
+    await page.goBack();
     await page.getByRole("link", {name: /Historical PR #9024/}).click();
     const pageRows = page.locator("tbody tr");
     assert.equal(await pageRows.count(), 763);

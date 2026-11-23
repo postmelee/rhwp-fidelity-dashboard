@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from core import read_json
 import pipeline
 from pr_evidence import import_archive
-from pr_evidence_site import common_pages, render_diff, visual_sweep
+from pr_evidence_site import common_pages, historical_page_preview, render_diff, visual_sweep
 
 CORPUS = pipeline.ROOT / "corpus"
 EVIDENCE = CORPUS / "pr-evidence"
@@ -60,6 +60,22 @@ class PullRequestEvidenceTests(unittest.TestCase):
                 self.assertEqual(common_pages(base, different), set())
         head["counts"]["rhwp"] -= 1
         self.assertEqual(common_pages(base, head), set())
+
+    def test_historical_page_preview_links_verified_upstream_assets_without_counting_coverage(self):
+        record = read_json(EVIDENCE / "historical-page-preview-9042.json")
+        _, body, summary = historical_page_preview(record, "record.json")
+        self.assertEqual(summary, {"pr": 9042, "reference_page": 1})
+        self.assertIn('id="reference-page-1"', body)
+        self.assertIn("Hancom Print has 2 pages and Native Skia produced 3", body)
+        self.assertIn("26.64%", body)
+        self.assertIn("WASM Canvas2D is unmeasured", body)
+        for asset in record["png"].values():
+            self.assertIn(f'/blob/{record["revision"]}/{asset["path"]}', body)
+            self.assertIn(asset["sha256"], body)
+        self.assertNotIn("<img", body)
+        record["png"]["native"]["path"] = "mydocs/pr/assets/../../../fake.png"
+        with self.assertRaisesRegex(ValueError, "Invalid historical evidence path"):
+            historical_page_preview(record, "record.json")
 
     def test_pr_scores_do_not_populate_a_release_even_when_source_shas_match(self):
         sha = self.sweep["series"]["head"]["native"]["source_sha"]
