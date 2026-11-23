@@ -1,0 +1,16 @@
+{
+  "attempt": 1,
+  "contract_sha256": "69e9d582b8278357a3e9c7c97f935600f1fb40327e1fb2f67328e388a170a442",
+  "producer_sha": "0d9cab90633061482fa687aa24f19267f03e6914",
+  "releases": [
+    {
+      "engine_sha": "981ce66b4183b13c1a3b5907e04a8969c8c42034",
+      "missing_files": [],
+      "missing_options": [],
+      "status": "static_pass",
+      "tag": "v0.9.1"
+    }
+  ],
+  "run_id": 45189804770,
+  "schema_version": 1
+}
