@@ -176,10 +176,54 @@ async function test(browser) {
     await page.getByText("1–1 of 1", {exact: true}).waitFor();
     assert.equal(await page.locator("tbody td").nth(7).innerText(), "Admitted run reference");
 
+    const cohortKey = "44766813207-1";
+    const cohortUrl = base + "cohort-" + cohortKey + ".html";
+    const receiptRecord = await (await page.request.get(base + "cohorts/" + cohortKey + ".json")).json();
+    const doc = receiptRecord.docs[0];
+    const fragment = "#page-" + doc.id + "-1";
+    const selection = page.locator("#page-handoff");
+    const copy = selection.getByRole("button", {name: "Copy reproduction details"});
+    const input = selection.getByRole("textbox", {name: "Reproduction details"});
+    await page.goto(cohortUrl);
+    assert.equal(await selection.isVisible(), false);
+    await page.getByRole("link", {name: "Reproduce " + doc.id + ", reference page 1", exact: true}).click();
+    await page.waitForURL(cohortUrl + fragment);
+    await page.waitForFunction(() => !document.getElementById("copy-page-handoff").disabled);
+    const selectedPage = JSON.parse(await input.inputValue());
+    const pilot = receiptRecord.stages.pilot;
+    assert.equal(selectedPage.page_permalink, cohortUrl + fragment);
+    assert.equal(selectedPage.hancom_reference_page, 1);
+    assert.equal(selectedPage.source_path_sha256, doc.path_sha256);
+    assert.equal(selectedPage.hancom_pdf_sha256, doc.pdf_sha256);
+    assert.equal(selectedPage.measurement.producer_sha, pilot.producer_sha);
+    assert.equal(selectedPage.backends["Native Skia"].tsv_sha256, pilot.artifacts["native/" + doc.id].tsv_sha256);
+    assert.equal(selectedPage.backends["WASM Canvas2D"].silhouette_percent,
+        pilot.measurement.backends.wasm.documents[0].scores.find(item => item.page === 1).raw);
+    await page.evaluate(() => Object.defineProperty(navigator, "clipboard", {
+        configurable: true, value: {writeText: async value => { window.copiedReproduction = value; }},
+    }));
+    await copy.click();
+    await selection.getByRole("status").getByText("Reproduction details copied.", {exact: true}).waitFor();
+    assert.equal(await page.evaluate(() => window.copiedReproduction), await input.inputValue());
+    await page.evaluate(() => Object.defineProperty(navigator, "clipboard", {
+        configurable: true, value: {writeText: async () => { throw new Error("Clipboard unavailable"); }},
+    }));
+    await copy.click();
+    assert.ok(await input.evaluate(element => element.selectionEnd === element.value.length));
+    await page.reload();
+    await page.waitForFunction(() => !document.getElementById("copy-page-handoff").disabled);
+    assert.deepEqual(JSON.parse(await input.inputValue()), selectedPage);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.goBack();
+    assert.equal(await selection.isVisible(), false);
+    assert.deepEqual(errors, []);
+
     const noScript = await browser.newPage({javaScriptEnabled: false});
     await noScript.goto(base + "#methods");
     assert.ok(await noScript.locator("#overview").isVisible());
     assert.ok(await noScript.locator("#methods").isVisible());
+    await noScript.goto(cohortUrl + fragment);
+    assert.equal(await noScript.locator(fragment).count(), 1);
     console.log("Browser smoke passed: tabs, keyboard, history, deep links, mobile, sorting, numeric JSON and no-JS.");
 }
 
