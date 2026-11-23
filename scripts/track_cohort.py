@@ -5,11 +5,12 @@ from pathlib import Path
 
 from core import KEY, PROTOCOL, SHA, canonical, digest, match, read_json, write_json
 from pipeline import api, ledger_repository, resolve_ref, stable_releases
-from receipt_archive import STAGES, persist, validate_archive
+from receipt_archive import STAGES, persist_records, validate_archive
 from receipt_cohort import CONFIG, contract, measure
+from stable_preflight import CONTRACT, READ_ERRORS, StablePreflight, error_status, reports, validate as validate_preflight
 
 
-def select(previous, candidates, config, retry_devel=False):
+def select(previous, candidates, config, retry_devel=False, preflight=None):
     attempts = {}
     for record in previous:
         key = (record["tag"], record["engine_sha"], record["cohort_sha256"])
@@ -26,25 +27,31 @@ def select(previous, candidates, config, retry_devel=False):
                     for backend in stage["measurement"]["backends"].values())
             for record in records
         )
-        if name == "devel" and records and not retry_devel:
+        if complete or (name == "devel" and records and not retry_devel):
+            continue
+        if preflight is not None and not preflight.allows(name, sha):
             continue
         if not records:
             return name, sha
-        if not complete and len(records) < 3 and retry is None:
+        if len(records) < 3 and retry is None:
             retry = name, sha
     return retry or ("", "")
 
 
-def select_stable(previous, tags, config, resolve=resolve_ref):
+def select_stable(previous, tags, config, resolve=resolve_ref, preflight=None):
     if not tags:
         raise ValueError("No stable release")
+    def candidates(names):
+        for name in names:
+            if preflight is not None and preflight.blocked_status:
+                break
+            sha = preflight.resolve(name, resolve) if preflight is not None else resolve(name)[0]
+            if sha:
+                yield name, sha
+
     # Finish the current stable release before opening the historical backlog.
-    current = tags[-1]
-    selected = select(previous, ((current, resolve(current)[0]),), config)
-    if selected[0]:
-        return selected
-    backlog = ((tag, resolve(tag)[0]) for tag in tags[:-1])
-    return select(previous, backlog, config)
+    selected = select(previous, candidates(tags[-1:]), config, preflight=preflight)
+    return selected if selected[0] else select(previous, candidates(tags[:-1]), config, preflight=preflight)
 
 
 def archive_docs(config):
@@ -113,6 +120,7 @@ def plan(track):
     ledger = Path("ledger")
     ledger_repository(ledger)
     previous = [validate_archive(read_json(p)) for p in (ledger / "cohorts").glob("*.json")]
+    preflight = None
     if track == "baseline":
         resolved, _ = resolve_ref(config["tag"])
         if resolved != config["engine_sha"]:
@@ -121,12 +129,27 @@ def plan(track):
     elif track == "devel":
         candidates = [("devel", api("commits/devel")["sha"])]
     else:
-        tag, sha = select_stable(previous, [r["tag_name"] for r in stable_releases()], config)
+        preflight = StablePreflight(api, reports(ledger / "compatibility"))
+        try:
+            tags = [r["tag_name"] for r in stable_releases()]
+        except READ_ERRORS as error:
+            raise RuntimeError("Cannot list stable releases: " + error_status(error)) from None
+        tag, sha = select_stable(previous, tags, config, preflight=preflight)
         candidates = None
     if candidates is not None:
         tag, sha = select(previous, candidates, config, os.environ.get("RETRY_DEVEL") == "true")
     links = release_sources(dict(config, tag=tag, engine_sha=sha), previous, target_locks()) if sha else {}
+    observed = preflight.observations if preflight else []
+    if observed:
+        report = {"schema_version": 1, "contract_sha256": CONTRACT, "releases": observed,
+                  "run_id": int(os.environ["GITHUB_RUN_ID"]), "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "producer_sha": os.environ["GITHUB_SHA"]}
+        write_json(Path("stable-compatibility.json"), validate_preflight(report))
+        for item in observed:
+            if item["status"] not in ("static_pass", "unsupported"):
+                print(f'{item["tag"]}: compatibility check deferred ({item["status"]})')
     with open(os.environ["GITHUB_OUTPUT"], "a") as dst:
+        print(f"compatibility={str(bool(observed)).lower()}", file=dst)
         for stage in STAGES:
             print(f"measure_{stage}={str(stage not in links).lower()}", file=dst)
         print(f"tag={tag}\nsha={sha}", file=dst)
@@ -156,7 +179,25 @@ def archive(config):
             value["stage_sources"][stage] = source
     if os.environ["MEASURE_RESULT"] in ("success", "skipped") and set(value["stages"]) != set(STAGES):
         raise ValueError("Missing successful measurement")
-    persist(validate_archive(value), Path("ledger"))
+    return validate_archive(value)
+
+
+def publish():
+    entries = {}
+    run_id = int(os.environ["GITHUB_RUN_ID"])
+    attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
+    key = f"{run_id}-{attempt}.json"
+    if os.environ.get("COMPATIBILITY") == "true":
+        report = validate_preflight(read_json(Path("preflight") / "stable-compatibility.json"),
+                                    run_id, attempt, os.environ["GITHUB_SHA"])
+        entries["compatibility/" + key] = report
+    if os.environ["ENGINE_SHA"]:
+        config = tracked_config()
+        config.update(engine_sha=match(SHA, os.environ["ENGINE_SHA"]), tag=os.environ["TRACK_TAG"])
+        entries["cohorts/" + key] = archive(config)
+    if not entries:
+        raise ValueError("No observed measurement or compatibility evidence")
+    persist_records(entries, Path("ledger"))
 
 
 if __name__ == "__main__":
@@ -165,10 +206,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.command == "plan":
         plan(os.environ["TRACK"])
+    elif args.command == "archive":
+        publish()
     else:
         config = tracked_config()
         config.update(engine_sha=match(SHA, os.environ["ENGINE_SHA"]), tag=os.environ["TRACK_TAG"])
-        if args.command == "archive":
-            archive(config)
-        else:
-            measure(Path("upstream").resolve(), Path("work").resolve(), args.command, config)
+        measure(Path("upstream").resolve(), Path("work").resolve(), args.command, config)

@@ -7,7 +7,7 @@ on:
     - cron: '23 */4 * * *'
     - cron: '47 1 * * *'
   pull_request:
-    paths: ['scripts/track_cohort.py', 'scripts/receipt_cohort.py', 'corpus/track-additions.json', '.github/workflows/track-cohort.yml']
+    paths: ['scripts/track_cohort.py', 'scripts/stable_preflight.py', 'scripts/receipt_archive.py', 'scripts/pipeline.py', 'scripts/receipt_cohort.py', 'corpus/track-additions.json', '.github/workflows/track-cohort.yml']
   workflow_dispatch:
     inputs:
       track:
@@ -76,6 +76,7 @@ jobs:
       tag: ${{ steps.plan.outputs.tag }}
       pilot: ${{ steps.plan.outputs.measure_pilot }}
       expanded: ${{ steps.plan.outputs.measure_expanded }}
+      compatibility: ${{ steps.plan.outputs.compatibility }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -86,6 +87,13 @@ jobs:
           RETRY_DEVEL: ${{ inputs.retry_devel }}
           TRACK: ${{ inputs.track || ((github.event_name == 'push' || github.event.schedule == '47 1 * * *') && 'stable' || 'devel') }}
         run: python3 scripts/track_cohort.py plan
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: steps.plan.outputs.compatibility == 'true'
+        with:
+          name: track-cohort-compatibility-${{ github.run_attempt }}
+          path: stable-compatibility.json
+          if-no-files-found: error
+          retention-days: 14
   measure:
     needs: plan
     if: needs.plan.outputs.sha != '' && (needs.plan.outputs.pilot == 'true' || needs.plan.outputs.expanded == 'true')
@@ -130,7 +138,7 @@ jobs:
           retention-days: 14
   archive:
     needs: [plan, measure]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.sha != ''
+    if: always() && needs.plan.result == 'success' && (needs.plan.outputs.sha != '' || needs.plan.outputs.compatibility == 'true')
     runs-on: ubuntu-24.04
     concurrency: fidelity-ledger
     permissions:
@@ -145,7 +153,13 @@ jobs:
         with:
           name: track-cohort-numeric-${{ github.run_attempt }}
           path: incoming
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.plan.outputs.compatibility == 'true'
+        with:
+          name: track-cohort-compatibility-${{ github.run_attempt }}
+          path: preflight
       - env:
+          COMPATIBILITY: ${{ needs.plan.outputs.compatibility }}
           ENGINE_SHA: ${{ needs.plan.outputs.sha }}
           TRACK_TAG: ${{ needs.plan.outputs.tag }}
           MEASURE_RESULT: ${{ needs.measure.result }}
