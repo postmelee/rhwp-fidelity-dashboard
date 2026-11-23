@@ -64,3 +64,10 @@ python3 scripts/cohort_shards.py "$engine_checkout" "$private_dir/results" \
 ```
 
 `intake.json`은 전체 경로에 영수증 상태를 남긴다. 원본 Git blob과 현재 바이트가 다르거나 유효한 PDF가 복수인 경로는 선택을 보류한다. 준비한 폴더에는 원본과 PDF가 들어 있으므로 로컬에 보관한다. 같은 실행을 다시 시작하면 쪽 범위·실행물·환경이 일치하는 완료 샤드를 재사용한다. `plan.json`, `status.json`, `shard-*.json`에서 해당 엔진의 실행 범위와 수치를 검토할 수 있다. 이 명령은 결과를 공개 원장에 전송하지 않는다.
+
+
+### 과거 안정 릴리즈의 생산기 호환성
+
+Stable Track은 측정 job을 시작하기 전에 태그를 Git 커밋으로 해석하고 현재 Visual Sweep 생산기에 필요한 스크립트와 옵션을 검사합니다. 확인된 누락은 `compatibility/<run>-<attempt>.json`에 기록하고 다음 릴리즈를 확인합니다. 정적 검사를 통과한 릴리즈는 실제 빌드 및 측정으로 진행합니다. 인증·권한, 요청 제한, 시간 초과, API 응답 오류는 이후 시도에서 재확인합니다.
+
+Run history의 **Stable release compatibility**에서 고정된 커밋과 판정 근거를 확인할 수 있습니다. 기존 측정 및 실패 기록은 `cohorts/`에서 계속 조회할 수 있습니다. 스크립트나 옵션 요구가 달라지면 생산기 계약 식별값도 바뀌어 이전 판정은 새 계약에 적용되지 않습니다.

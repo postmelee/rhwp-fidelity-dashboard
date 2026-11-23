@@ -9,7 +9,7 @@ import zipfile
 
 from core import (BACKENDS, HASH, KEY, PROTOCOL, SHA, canonical, digest, exact, integer,
                   match, read_json, validate_measurement, write_json)
-from pipeline import ROOT, git, ledger_repository
+from pipeline import ROOT, git, ledger_path, ledger_repository
 from receipt_cohort import contract
 
 REPO = "postmelee/rhwp-fidelity-dashboard"
@@ -127,20 +127,32 @@ def collect(request):
     return validate_archive(value)
 
 
-def persist(value, folder):
+def persist_records(entries, folder):
     env = ledger_repository(folder, write=True)
-    name = f'cohorts/{value["run_id"]}-{value["attempt"]}.json'
-    target = folder / name
-    if target.exists():
-        if read_json(target) != value:
-            raise ValueError("Immutable cohort record collision")
+    changed = []
+    for name, value in entries.items():
+        if not ledger_path(name):
+            raise ValueError("invalid measurement ledger path")
+        target = folder / name
+        if target.exists():
+            if read_json(target) != value:
+                raise ValueError("Immutable record collision")
+        else:
+            changed.append(name)
+    if not changed:
         return
-    write_json(target, value)
-    git(["add", "--", name], folder, env)
+    for name in changed:
+        write_json(folder / name, entries[name])
+    git(["add", "--", *changed], folder, env)
     git(["-c", "user.name=github-actions[bot]", "-c",
          "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-         "commit", "-m", "Record release Print cohort measurement"], folder, env)
+         "commit", "-m", "Record receipt-track evidence"], folder, env)
     git(["push", "origin", "HEAD:refs/heads/data"], folder, env)
+
+
+def persist(value, folder):
+    name = f'cohorts/{value["run_id"]}-{value["attempt"]}.json'
+    persist_records({name: value}, folder)
 
 
 if __name__ == "__main__":

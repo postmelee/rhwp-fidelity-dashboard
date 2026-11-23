@@ -8,7 +8,7 @@ BASE = "https://postmelee.github.io/rhwp-fidelity-dashboard/"
 paths = ["pr-9024.html", "index.html", "summary.json", "dashboard.css", "dashboard.js"]
 paths.extend(path.relative_to(ROOT).as_posix() for path in sorted((ROOT / "records").glob("*.json")))
 paths.extend(["cohort-runs.json", "cohort.js", "receipt-status.js", "corpus-index.json", "corpus-index.html", "corpus-index.js"])
-for pattern in ("cohort-*.html", "cohorts/*.json"):
+for pattern in ("cohort-*.html", "cohorts/*.json", "stable-compatibility.html", "stable-compatibility.json"):
     paths.extend(p.relative_to(ROOT).as_posix() for p in sorted(ROOT.glob(pattern)))
 expected = {name: (ROOT / name).read_bytes() for name in paths}
 

@@ -182,6 +182,9 @@ def build(folder, out, corpus):
     from cohort_site import build as build_cohort_site
     from pr_evidence_site import build as build_pr_site
     cohort_runs, cohort_panel = build_cohort_site(Path(folder).parent / "cohorts", out, inventory)
+    from stable_preflight import build as build_compatibility
+    compatibility_link = build_compatibility(Path(folder).parent / "compatibility", out)
+    cohort_panel += compatibility_link
     pr_evidence, pr_panel = build_pr_site(ROOT / "corpus/pr-evidence", out)
     render_site(out, records, docs, inventory, cohort_panel, pr_panel)
     write_json(out / "summary.json", {
@@ -197,6 +200,10 @@ def build(folder, out, corpus):
 
 def git(args, cwd, env=None, check=True):
     return subprocess.run(["git", *args], cwd=cwd, env=env, text=True, capture_output=True, check=check)
+
+def ledger_path(name):
+    return re.fullmatch(r"(?:records|cohorts|compatibility)/[0-9]+-[0-9]+\.json", name) is not None
+
 
 def ledger_repository(destination, write=False):
     repo = os.environ["GITHUB_REPOSITORY"]
@@ -218,7 +225,7 @@ def ledger_repository(destination, write=False):
         # Only read JSON blobs; never checkout branch-supplied code, hooks or symlinks.
         files = git(["ls-tree", "-r", "--name-only", "FETCH_HEAD"], destination, env).stdout.splitlines()
         for name in files:
-            if not re.fullmatch(r"(?:records|cohorts)/[0-9]+-[0-9]+\.json", name):
+            if not ledger_path(name):
                 raise ValueError("unexpected ledger path")
             mode = git(["ls-tree", "FETCH_HEAD", name], destination, env).stdout.split()[0]
             if mode != "100644":
