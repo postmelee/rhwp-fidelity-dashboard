@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "kind": "historical_page_preview",
+  "pr": 9042,
+  "revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+  "engine_sha": "637410dbfa8deb060d1c8739b0bf5e7ae8286c89",
+  "producer_sha256": "1966e43a33fed9c18b5980a2323a78f97c6eea95b29e7df7845cb498247469f0",
+  "document": "metadata-empty-header.hwp",
+  "source_sha256": "8b93ad8e2b926fd3359105596bff803a81cfb79ba065776e8ef801428330f70b",
+  "pdf_sha256": "a8f66beb2d3c08f17ac77194eebc99f571ba2788e42d3e992dc78f535fd5cafd",
+  "reference_page": 1,
+  "hancom_pages": 2,
+  "native_pages": 3,
+  "raw_percent": 26.64,
+  "dpi": 96,
+  "hancom_build": "2020 (11.0.0.9136)",
+  "png": {
+    "hancom": {
+      "path": "mydocs/pr/assets/pr9042/empty-header-print-p001.png",
+      "sha256": "1476b3a04dc621c1d7a6cc228a4aa6f233f86c987abf6540de8d54ee43fcee23",
+      "width": 794,
+      "height": 1122
+    },
+    "native": {
+      "path": "mydocs/pr/assets/pr9042/empty-header-native-p001.png",
+      "sha256": "4d72d33dc0a13580cf47b98e67c68177a23ef9a0e2cb22baf63ef27d212f38d7",
+      "width": 794,
+      "height": 1122
+    },
+    "comparison": {
+      "path": "mydocs/pr/assets/pr9042/empty-header-page-ownership-review.png",
+      "sha256": "66faccfc5ef92886974b1a8d0e1cadfbdc258d3c678bc346ab4e22decb4ee79d",
+      "width": 2382,
+      "height": 1154
+    }
+  },
+  "evidence": {
+    "intake": {
+      "path": "mydocs/pr/assets/pr9042/README.md",
+      "sha256": "426d87648aeab74a14b4c1bbcf41baa092a31161844e1548d345105d98ed3c55"
+    },
+    "manifest": {
+      "path": "mydocs/pr/assets/pr9042/evidence.json",
+      "sha256": "763c28db18c67fcb7ca2814f1c49817cafb1f402f9d51aa9ad9a4297d0817dc4"
+    },
+    "path_migration": {
+      "path": "mydocs/pr/assets/pr9042/pdf-path-migration.json",
+      "sha256": "c33c4fa2a3360116fb4bbfc4617b3ac88b002508a43c5f0ce5627ae76b5a0798"
+    },
+    "partial_tsv": {
+      "path": "mydocs/pr/assets/pr9042/empty-header-p001-native-partial.tsv",
+      "sha256": "7a3df2fdb464709526fc8273848fafe312e93d82971216eac4b4b2aa54cac093"
+    },
+    "later_validation": {
+      "path": "mydocs/pr/assets/pr9042/final-validation/README.md",
+      "sha256": "541852a411e47e04615656907e2544bd65d19aa0b45bc019e3dce350fdb8a723"
+    }
+  }
+}

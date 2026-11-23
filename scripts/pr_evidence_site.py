@@ -1,9 +1,10 @@
 """Display historical PR evidence outside the release ledger."""
 from html import escape
+from pathlib import PurePosixPath
 from urllib.parse import quote
 
 from cohort_site import page
-from core import HASH, SHA, integer, match, read_json, write_json
+from core import HASH, SHA, exact, integer, match, read_json, write_json
 from pr_evidence import BACKENDS
 from presentation import LABELS
 from preview_presentation import UPSTREAM, table
@@ -154,17 +155,91 @@ def visual_sweep(record, ledger):
                                                      "raw": lows, "common_pages": comparisons}
 
 
+def pinned_link(revision, name, suffix):
+    path = PurePosixPath(name)
+    if (path.as_posix() != name or ".." in path.parts or not path.is_relative_to("mydocs/pr/assets")
+            or path.suffix != suffix):
+        raise ValueError("Invalid historical evidence path")
+    return f"{UPSTREAM}/blob/{revision}/{quote(name)}"
+
+
+def historical_page_preview(record, ledger):
+    exact(record, "schema_version kind pr revision engine_sha producer_sha256 document source_sha256 "
+          "pdf_sha256 reference_page hancom_pages native_pages raw_percent dpi hancom_build png evidence")
+    if record["schema_version"] != 1:
+        raise ValueError("Unsupported historical page preview")
+    revision = match(SHA, record["revision"])
+    engine = match(SHA, record["engine_sha"])
+    producer = match(HASH, record["producer_sha256"])
+    source_sha = match(HASH, record["source_sha256"])
+    pdf_sha = match(HASH, record["pdf_sha256"])
+    pr = integer(record["pr"], 10**9)
+    reference_page = integer(record["reference_page"])
+    hancom_pages = integer(record["hancom_pages"])
+    native_pages = integer(record["native_pages"])
+    dpi = integer(record["dpi"], 2400)
+    raw = record["raw_percent"]
+    if (not 1 <= reference_page <= min(hancom_pages, native_pages) or native_pages == hancom_pages
+            or not dpi or type(raw) not in (int, float) or not 0 <= raw <= 100):
+        raise ValueError("Historical preview requires one scored page from a page-count mismatch")
+
+    exact(record["png"], "hancom native comparison")
+    exact(record["evidence"], "intake manifest path_migration partial_tsv later_validation")
+    cards = []
+    for key, title in (("hancom", "Hancom Print"), ("native", "Native Skia"),
+                       ("comparison", "Side-by-side review")):
+        asset = record["png"][key]
+        exact(asset, "path sha256 width height")
+        url = pinned_link(revision, asset["path"], ".png")
+        checksum = match(HASH, asset["sha256"])
+        width, height = integer(asset["width"]), integer(asset["height"])
+        if not width or not height:
+            raise ValueError("Invalid historical PNG size")
+        cards.append(f'<article><h3>{title}</h3><p>{width} × {height} px</p>'
+                     f'<p><a href="{url}">Open {title} PNG at upstream</a></p>'
+                     f'<p>SHA-256 <code>{checksum}</code></p></article>')
+    evidence_links = []
+    for key, label, suffix in (("intake", "Original review and synthetic fixture", ".md"),
+                               ("manifest", "Producer and Print evidence", ".json"),
+                               ("path_migration", "Reference PDF path and byte identity", ".json"),
+                               ("partial_tsv", "Partial one-page TSV", ".tsv"),
+                               ("later_validation", "Later complete upstream validation", ".md")):
+        asset = record["evidence"][key]
+        exact(asset, "path sha256")
+        match(HASH, asset["sha256"])
+        url = pinned_link(revision, asset["path"], suffix)
+        evidence_links.append(f'<li><a href="{url}">{label}</a></li>')
+
+    body = (f'<p>Historical <a href="{UPSTREAM}/pull/{pr}">PR #{pr}</a> · {escape(record["document"])}</p>'
+            f'<section id="reference-page-{reference_page}"><h2>Reference page {reference_page}</h2>'
+            f'<p><strong>Partial result · page-count mismatch</strong>. Hancom Print has {hancom_pages} pages '
+            f'and Native Skia produced {native_pages}. The recorded raw silhouette score for this reference page is '
+            f'{raw:.2f}%. WASM Canvas2D is unmeasured for this capture.</p>'
+            f'<p>Initial review checkout <a href="{UPSTREAM}/commit/{engine}"><code>{engine}</code></a> · '
+            f'Hancom {escape(record["hancom_build"])} · Print · {dpi} DPI</p>'
+            '<div class="cards">' + "".join(cards) + '</div></section>'
+            '<h2>Run provenance</h2><dl>'
+            f'<dt>Native binary SHA-256</dt><dd><code>{producer}</code></dd>'
+            f'<dt>Source SHA-256</dt><dd><code>{source_sha}</code></dd>'
+            f'<dt>Print PDF SHA-256</dt><dd><code>{pdf_sha}</code></dd></dl>'
+            '<p>This early review is documented in the PR evidence history. Release coverage uses its own measurement records.</p>'
+            f'<p><a href="{ledger}">Evidence index and hashes</a></p><ul>' + "".join(evidence_links) + "</ul>")
+    return f"Historical page preview · PR #{pr}", body, {"pr": pr, "reference_page": reference_page}
+
+
 def build(folder, out):
     index = []
     links = []
-    presenters = {"upstream_render_diff": render_diff, "submitted_visual_sweep": visual_sweep}
+    presenters = {"upstream_render_diff": render_diff, "submitted_visual_sweep": visual_sweep,
+                  "historical_page_preview": historical_page_preview}
     for source in sorted(folder.glob("*.json")):
         record = read_json(source)
         ledger = f"pr-evidence/{source.name}"
         view = f"pr-evidence-{source.stem}.html"
         title, body, summary = presenters[record["kind"]](record, ledger)
-        (out / view).write_text(page(title, body, section="renderers", section_label="Renderer comparison"),
-                                encoding="utf-8")
+        section, label = (("history", "Run history") if record["kind"] == "historical_page_preview"
+                          else ("renderers", "Renderer comparison"))
+        (out / view).write_text(page(title, body, section=section, section_label=label), encoding="utf-8")
         write_json(out / ledger, record)
         index.append({"kind": record["kind"], "record": ledger, "view": view, **summary})
         links.append(f'<li><a href="{escape(view)}">{escape(title)}</a></li>')
