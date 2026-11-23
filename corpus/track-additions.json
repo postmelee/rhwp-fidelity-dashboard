@@ -285,6 +285,34 @@
       "compat": "2022",
       "print_note": "mydocs/pr/assets/issues7754_7765/input-provenance.json",
       "print_note_sha256": "09249adc7ff8d714dccfd5ad898516a11f65c4c0bb152d9624b8f509c396c217"
+    },
+    {
+      "input": "samples/issue8947/36481164-squeeze-title-cell.hwpx",
+      "id": "archived-40426179f639b59f",
+      "source_sha256": "7cb752425acbb9eaebb144e6f27a895d2d3eabc6fbc6b3059d0c9dce6c46640b",
+      "pdf": "pdf/issue8947/36481164-squeeze-title-cell-2024.pdf",
+      "pdf_sha256": "600fb9974578944ad2f8f3b92d3619c17a38a2216ffa30d5fe35c81f75c5c319",
+      "pages": 2,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/integration_open_prs_20261120/official-print-references.json",
+      "reference_evidence_sha256": "ce757294c81f9660a372ae8df480a1b90373017ff380e1279becd9b2b46c2ee1",
+      "reference_archive": "official-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
+    },
+    {
+      "input": "samples/issue9085/facility_fee_reduction_criteria.hwpx",
+      "id": "archived-1d7c7245596541c0",
+      "source_sha256": "a30ce89ad8659e14ade23ff8aea09d9e369b80058ace0ac44b9a4d14455578ff",
+      "pdf": "pdf/issue9085/facility_fee_reduction_criteria-2024.pdf",
+      "pdf_sha256": "0f0136b898e56be268501073678c1a346aa7c2228c0c88221a14deeda8147486",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/integration_open_prs_20261120/official-print-references.json",
+      "reference_evidence_sha256": "ce757294c81f9660a372ae8df480a1b90373017ff380e1279becd9b2b46c2ee1",
+      "reference_archive": "official-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
     }
   ]
 }

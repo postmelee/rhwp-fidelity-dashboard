@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import os
+import re
 from urllib.parse import quote
 import urllib.request
 
@@ -24,10 +25,13 @@ def contract(config=None):
         def asset(path, sha, provenance, origin):
             return {"path": "cache/" + row["id"] + "/" + Path(path).name, "source": origin + quote(path),
                     "sha256": sha, "provenance": provenance}
+        print_provenance = "Hancom Print " + row["hancom"]
+        if "reference_archive" in row:
+            print_provenance += " (archived record)"
         docs.append({
             "id": row["id"], "compat": row.get("compat", "2022"), "pages": row["pages"],
             "document": asset(row["input"], row["source_sha256"], "Public upstream verification input", base),
-            "golden": asset(row["pdf"], row["pdf_sha256"], "Hancom Print " + row["hancom"], reference_base),
+            "golden": asset(row["pdf"], row["pdf_sha256"], print_provenance, reference_base),
             "publication": {"approved": True, "metadata_approved": True, "raw_files": False,
                             "evidence": reference_base + quote(row.get("reference_evidence", config["receipt"]))},
             "font_environment": defaults["font_environment"], "fonts": defaults["fonts"],
@@ -104,6 +108,37 @@ def verify_reference_aliases(config):
             raise ValueError("Alias changed the original input digest or Print conditions")
 
 
+def verify_archived_print(doc, archive):
+    """Validate the paired Print record and content control in the official archive."""
+    if doc["reference_archive"] != "official-print-references-v1":
+        raise ValueError("Unknown archived Print record format")
+    matches = [row for row in archive["references"]
+               if (row["input"], row["input_sha256"], row["pdf"], row["pdf_sha256"], row["pages"])
+               == (doc["input"], doc["source_sha256"], doc["pdf"], doc["pdf_sha256"], doc["pages"])]
+    if len(matches) != 1:
+        raise ValueError("Archived Print record differs from the pinned measurement input")
+    record = matches[0]
+    receipt = record["receipt"]
+    job_id, version = receipt.get("job_id"), receipt.get("hancom_version")
+    if (not isinstance(job_id, str)
+            or not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", job_id)
+            or not isinstance(version, str) or not re.fullmatch(r"[0-9]+(?:\.[0-9]+){3}", version)
+            or receipt.get("engine") != doc["hancom"] or doc["hancom"] != "2024"
+            or doc.get("compat") != "2024"
+            or type(receipt.get("pdf_print_method")) is not int or receipt["pdf_print_method"] != 0
+            or receipt.get("pdf_output_mode") != "frame_print_to_pdf_ex_one_up"
+            or receipt.get("input_preprocess") != "none"
+            or type(receipt.get("pdf_page_count")) is not int
+            or receipt["pdf_page_count"] != doc["pages"]):
+        raise ValueError("Archived Print job conditions differ")
+    controls = [row for row in archive["independent_print_content_control"]
+                if row["document"] == record["key"]]
+    expected = (doc["pages"], doc["pages"], doc["pages"], [])
+    if (len(controls) != 1 or tuple(controls[0].get(key) for key in
+            ("prior_pages", "new_pages", "matched_text_pages", "print_text_differences")) != expected):
+        raise ValueError("Archived Print content control differs")
+
+
 def verify_later_registered(documents):
     import json
     from functools import lru_cache
@@ -120,6 +155,12 @@ def verify_later_registered(documents):
     evidence = lru_cache(maxsize=None)(fetch)
     for doc in items:
         revision = doc["reference_revision"]
+        if "reference_archive" in doc:
+            raw = evidence(revision, doc["reference_evidence"])
+            if digest(raw) != doc["reference_evidence_sha256"]:
+                raise ValueError("Archived Print evidence differs from the pinned evidence")
+            verify_archived_print(doc, json.loads(raw))
+            continue
         ref = registry(revision)[doc["input"]]
         if (ref["provenance"] != "desktop_hancom_print"
                 or any(ref[k] != doc[k] for k in ("source_sha256", "pdf", "pdf_sha256", "pages"))
