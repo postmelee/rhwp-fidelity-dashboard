@@ -1,0 +1,350 @@
+{
+  "attempt": 1,
+  "contract_sha256": "69e9d582b8278357a3e9c7c97f935600f1fb40327e1fb2f67328e388a170a442",
+  "producer_sha": "e7884af12dc59dcef81ea01e17803d254d52a253",
+  "releases": [
+    {
+      "engine_sha": "3e43f2bb8285920d150402f7a6094e96f2257213",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.5.0"
+    },
+    {
+      "engine_sha": "f1964b54b788b42f05daf5e9bb58bb9ef6d28f93",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.6.0"
+    },
+    {
+      "engine_sha": "7ff7ddf461e2f55b92b56b9c74fbdb5d18b4aec4",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.0"
+    },
+    {
+      "engine_sha": "a8cc9817f0a34a4fcdb23d5e16bd493740227711",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.2"
+    },
+    {
+      "engine_sha": "c2e8a3461de800a02f76127ff4797bade1d4e532",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.3"
+    },
+    {
+      "engine_sha": "92c5b6b79d22f6c784b3b317551c66466b3b63a5",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.6"
+    },
+    {
+      "engine_sha": "033617e23847982135c02091a62f55031a3817b5",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.7"
+    },
+    {
+      "engine_sha": "42cf91b6ba7b50fa1c853c01158a52ef68b45442",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.8"
+    },
+    {
+      "engine_sha": "0fb3e6758b8ad11d2f3c3849c83b914684e83863",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.9"
+    },
+    {
+      "engine_sha": "62a458aa317e962cd3d0eec6096728c172d57110",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.10"
+    },
+    {
+      "engine_sha": "a9dcdee32b17a7f9a20c609a5ed547e62fb8ebae",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.11"
+    },
+    {
+      "engine_sha": "1899ef9bc2dfd1c6c0c4d18b192d253a2d0a1fb5",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.12"
+    },
+    {
+      "engine_sha": "b3e16ef212af81ef37d973ddb86d6816d3804642",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.13"
+    },
+    {
+      "engine_sha": "fb885547538dc6572a12722dd2991b553e082e0e",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.14"
+    },
+    {
+      "engine_sha": "aa925a5954f0fd26dfcef2166cbce7877c481f44",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.15"
+    },
+    {
+      "engine_sha": "de02159ab4d2c5d165d6e25568bad3f8af5ef6cb",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.16"
+    },
+    {
+      "engine_sha": "03351190ec35436e58cbfee0aa9278a8fdc04a59",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.17"
+    },
+    {
+      "engine_sha": "93862a4e16df59834ebce46d91e948cd739208e9",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.18"
+    },
+    {
+      "engine_sha": "f137b4c9468eaff5bb43e25108e9c9d39a2ed15b",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.7.19"
+    },
+    {
+      "engine_sha": "60911e822b0d0bd4c86e7e98d31e1b13f195c99c",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.0"
+    },
+    {
+      "engine_sha": "1dbf024fdc22d044c4abedb5bd801a741ce05e8a",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.1"
+    },
+    {
+      "engine_sha": "9b16aa9e23f476e2b335d7c029fc9f24a199d63c",
+      "missing_files": [
+        "visual_sweep.py",
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.2"
+    },
+    {
+      "engine_sha": "45af1773b4b0831c8ca1174418e115b442e3d114",
+      "missing_files": [
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.3"
+    },
+    {
+      "engine_sha": "496333b27d21ddb9114ba9ae340bcb895870c9a7",
+      "missing_files": [
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.4"
+    },
+    {
+      "engine_sha": "f1f9c6ae58344ee9368996d3543f76b9345cf227",
+      "missing_files": [
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.6"
+    },
+    {
+      "engine_sha": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "missing_files": [
+        "visual_sweep_images.py",
+        "visual_sweep_pdf.py",
+        "visual_sweep_resume.py",
+        "visual_sweep_workers.py"
+      ],
+      "missing_options": [],
+      "status": "unsupported",
+      "tag": "v0.8.7"
+    },
+    {
+      "engine_sha": "c9095c5f67632e6721e800ccc7fb43ea49d26682",
+      "missing_files": [],
+      "missing_options": [],
+      "status": "static_pass",
+      "tag": "v0.9.0"
+    }
+  ],
+  "run_id": 45386259653,
+  "schema_version": 1
+}
