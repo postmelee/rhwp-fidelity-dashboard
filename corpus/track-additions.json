@@ -313,6 +313,20 @@
       "reference_archive": "official-print-references-v1",
       "hancom": "2024",
       "compat": "2024"
+    },
+    {
+      "input": "samples/issue8759/6500000-201700118_jeju_tourism_education_plan.hwp",
+      "id": "manual-2d9840f90784fbcb",
+      "source_sha256": "fa87e135c3d609324457adb37230e220be9406ba99a94d26a813ba7132244ac9",
+      "pdf": "pdf/issue8759/6500000-201700118_jeju_tourism_education_plan-2024.pdf",
+      "pdf_sha256": "4c7292f010ceecc9b8f4656f77e25b570e24534324b04574851bb5e34187604e",
+      "pages": 313,
+      "reference_revision": "50324d194d1cd7c46d168f07a58515086530f03b",
+      "reference_evidence": "mydocs/pr/assets/issue_9326/20261124/print-provenance.json",
+      "reference_evidence_sha256": "9fd4aede8338df7fe78e418c24b6e9bfdafed17fb4792b9a41eef67bc53a6e3c",
+      "reference_archive": "reviewed-manual-print-v1",
+      "hancom": "2024",
+      "compat": "2024"
     }
   ]
 }
