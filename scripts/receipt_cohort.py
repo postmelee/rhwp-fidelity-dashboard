@@ -201,6 +201,18 @@ def verify_later_registered(documents):
             raise ValueError("Later Print measurement conditions differ")
 
 
+def pilot_build(record, config):
+    expected = {"stage": "pilot", "engine_sha": config["engine_sha"], "protocol": PROTOCOL,
+                "cohort_sha256": digest(canonical(config)), "producer_sha": os.environ["GITHUB_SHA"],
+                "run_id": int(os.environ["GITHUB_RUN_ID"]), "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"])}
+    if any(record.get(key) != value for key, value in expected.items()):
+        return None
+    result = record["measurement"]
+    if any(result["backends"][backend]["status"] != "complete" for backend in BACKENDS):
+        return None
+    return result["build_sha256"]
+
+
 def measure(upstream, output, stage, config=None):
     import pypdfium2
     config, docs = contract(config)
@@ -214,7 +226,12 @@ def measure(upstream, output, stage, config=None):
         with pypdfium2.PdfDocument(str(corpus / doc["golden"]["path"])) as pdf:
             if len(pdf) != doc["pages"]:
                 raise ValueError("Independent PDF page count mismatch")
-    result = adapter.run(upstream, corpus, output / stage / "result.json", config["engine_sha"])
+    pilot = output / "numeric" / "pilot.json"
+    prepared = None
+    if stage == "expanded" and pilot.is_file():
+        prepared = pilot_build(read_json(pilot), config)
+    result = adapter.run(upstream, corpus, output / stage / "result.json", config["engine_sha"],
+                         prepared_build=prepared)
     validate_measurement(result, docs)
     artifacts = {}
     for backend in BACKENDS:

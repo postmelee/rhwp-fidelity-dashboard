@@ -72,8 +72,14 @@ def release_sources(config, previous, locks):
         prior = by_run.get((lock["run_id"], lock["attempt"]))
         if (not prior or stage not in prior["stages"] or stage in prior.get("stage_sources", {})
                 or any(prior[k] != config[k] for k in ("engine_sha", "corpus_sha", "receipt_sha256"))
-                or prior["cohort_sha256"] != digest(canonical(dict(config, tag=prior["tag"])))
-                or prior["docs"] != archive_docs(config) or prior["protocol"] != PROTOCOL):
+                or prior["protocol"] != PROTOCOL):
+            continue
+        # The pilot consumes only the first document. For an append-only
+        # expansion, reconstruct and verify the entire original contract.
+        original = dict(config, tag=prior["tag"])
+        if stage == "pilot" and len(prior["docs"]) < len(config["documents"]):
+            original["documents"] = config["documents"][:len(prior["docs"])]
+        if prior["docs"] != archive_docs(original) or prior["cohort_sha256"] != digest(canonical(original)):
             continue
         value = prior["stages"][stage]
         data = value["measurement"]
