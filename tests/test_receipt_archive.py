@@ -48,5 +48,24 @@ class ReceiptCoverageTests(unittest.TestCase):
                 ("run_manifest_sha256", "export_sha256", "tsv_sha256", "font_supply_sha256")}
         result = summarize(validate_archive(self.record))
         self.assertEqual(result["paired_docs"], 0)
+        self.assertEqual(result["docs_at_or_above_90"], 0)
+        self.assertIsNone(result["lowest_below_90"])
         self.assertIsNone(result["pages"][0]["delta"])
         self.assertEqual(result["by_backend"]["native"]["page_count_mismatch"], 1)
+
+    def test_print_floor_includes_boundary_and_checks_both_renderers(self):
+        stage = self.record["stages"]["pilot"]
+        for b in BACKENDS:
+            stage["measurement"]["backends"][b] = {
+                "status": "complete", "exit_code": 0, "quality_alert": True,
+                "documents": [{"id": "pilot", "status": "complete", "pdf_pages": 2, "rendered_pages": 2,
+                               "scores": [{"page": 1, "raw": 99}, {"page": 2, "raw": 90}]}]}
+            stage["artifacts"][b + "/pilot"] = {k: "8" * 64 for k in
+                ("run_manifest_sha256", "export_sha256", "tsv_sha256", "font_supply_sha256")}
+        result = summarize(validate_archive(self.record))
+        self.assertEqual((result["docs_at_or_above_90"], result["paired_docs"]), (1, 1))
+        self.assertIsNone(result["lowest_below_90"])
+        stage["measurement"]["backends"]["wasm"]["documents"][0]["scores"][1]["raw"] = 89.999
+        result = summarize(validate_archive(self.record))
+        self.assertEqual((result["docs_at_or_above_90"], result["paired_docs"]), (0, 1))
+        self.assertEqual(result["lowest_below_90"], {"document": "pilot", "page": 2, "backend": "wasm", "score": 89.999})

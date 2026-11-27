@@ -495,6 +495,20 @@ def corpus_measurement_panel(inventory, groups, runs, *, view="renderers"):
                     f'<div class="coverage-card"><span>Measurement target</span><b>{target}</b>'
                     + (f'<small>{run["paired_pages"]:,} paired pages · <a href="cohort-{run_key}.html">Run {run_key}</a></small>'
                        if run else "") + '</div></div>')
+        if view == "overview":
+            print_check = "No fully paired documents to evaluate."
+            if paired:
+                passed = run["docs_at_or_above_90"]
+                print_check = (f'<strong>{passed:,}/{paired:,} ({100 * passed / paired:.1f}%)</strong> '
+                               'fully measured documents scored at least 90% silhouette on every page '
+                               'in both renderers. ')
+                if (low := run["lowest_below_90"]) is not None:
+                    minimum = f'{low["score"]:.5f}%'
+                    renderer = {"native": "Native Skia", "wasm": "WASM Canvas2D"}[low["backend"]]
+                    href = f'cohort-{run_key}.html#page-{esc(low["document"])}-{low["page"]}'
+                    print_check += (f'{paired - passed:,} had a page below 90%. '
+                                    f'<a href="{href}">Lowest page ({renderer}, {minimum})</a>')
+            coverage += f'<h4>Whole-document Print check</h4><p>{print_check}</p>'
         actions = f'<div class="actions">{score_link}<a class="action" href="{inventory_url}">Browse corpus paths</a></div>'
         if view == "documents":
             sections.append(f'<section class="surface" data-release="{sha}" data-preferred="true">'
