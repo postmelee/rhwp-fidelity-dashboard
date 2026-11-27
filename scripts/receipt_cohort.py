@@ -27,7 +27,8 @@ def contract(config=None):
                     "sha256": sha, "provenance": provenance}
         print_provenance = "Hancom Print " + row["hancom"]
         if "reference_archive" in row:
-            print_provenance += " (archived record)"
+            print_provenance += (" (attested manual Windows Print)" if row["reference_archive"] == "reviewed-manual-print-v1"
+                                 else " (archived record)")
         docs.append({
             "id": row["id"], "compat": row.get("compat", "2022"), "pages": row["pages"],
             "document": asset(row["input"], row["source_sha256"], "Public upstream verification input", base),
@@ -139,6 +140,24 @@ def verify_archived_print(doc, archive):
         raise ValueError("Archived Print content control differs")
 
 
+def verify_manual_print(doc, archive):
+    """Match the reviewed Windows Print attestation to its exact input and PDF."""
+    matches = [row for row in archive["documents"] if row["input"]["path"] == doc["input"]]
+    if len(matches) != 1:
+        raise ValueError("Expected one attested manual Print for the input")
+    row = matches[0]
+    ref = row["reference_print"]
+    if ((row["input"]["sha256"], ref["path"], ref["sha256"], row["pages"], row["layout_generation"])
+            != (doc["source_sha256"], doc["pdf"], doc["pdf_sha256"], doc["pages"], doc["compat"])):
+        raise ValueError("Manual Print differs from the pinned measurement input")
+    # The archive also describes a reused 2020 job. Only the explicit desktop
+    # attestation below identifies the reviewed manual Print workflow.
+    if (ref.get("origin") != "사용자가 win10-ted에서 산출한 한컴 2024 Hancom PDF Print 제공"
+            or ref.get("creator") != "Hwp 2024 13.0.0.3901" or ref.get("producer") != "Hancom PDF 1.3.0.550"
+            or doc["hancom"] != "2024" or doc["compat"] != "2024"):
+        raise ValueError("Manual Print conditions differ")
+
+
 def verify_later_registered(documents):
     import json
     from functools import lru_cache
@@ -159,7 +178,10 @@ def verify_later_registered(documents):
             raw = evidence(revision, doc["reference_evidence"])
             if digest(raw) != doc["reference_evidence_sha256"]:
                 raise ValueError("Archived Print evidence differs from the pinned evidence")
-            verify_archived_print(doc, json.loads(raw))
+            if doc["reference_archive"] == "reviewed-manual-print-v1":
+                verify_manual_print(doc, json.loads(raw))
+            else:
+                verify_archived_print(doc, json.loads(raw))
             continue
         ref = registry(revision)[doc["input"]]
         if (ref["provenance"] != "desktop_hancom_print"

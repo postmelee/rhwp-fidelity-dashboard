@@ -89,3 +89,28 @@ class ArchivedPrintTests(unittest.TestCase):
         self.archive["independent_print_content_control"][0]["matched_text_pages"] = 1
         with self.assertRaisesRegex(ValueError, "content control"):
             self.verify()
+
+    def test_manual_print_requires_exact_attestation_and_pair(self):
+        self.document["reference_archive"] = "reviewed-manual-print-v1"
+        row = {
+            "input": {"path": self.document["input"], "sha256": self.document["source_sha256"]},
+            "reference_print": {
+                "path": self.document["pdf"], "sha256": self.document["pdf_sha256"],
+                "origin": "사용자가 win10-ted에서 산출한 한컴 2024 Hancom PDF Print 제공",
+                "creator": "Hwp 2024 13.0.0.3901", "producer": "Hancom PDF 1.3.0.550",
+            },
+            "pages": 2, "layout_generation": "2024",
+        }
+        self.archive = {"documents": [row]}
+        self.verify()
+        for key, value in (("origin", "저장소의 기존 한컴 2020 Hancom PDF Print 재사용"),
+                           ("producer", "PDF export"), ("sha256", "0" * 64)):
+            with self.subTest(key=key), patch.dict(row["reference_print"], {key: value}):
+                with self.assertRaises(ValueError):
+                    self.verify()
+        with patch.dict(row, {"pages": 1}):
+            with self.assertRaises(ValueError):
+                self.verify()
+        self.archive["documents"].append(row)
+        with self.assertRaises(ValueError):
+            self.verify()
