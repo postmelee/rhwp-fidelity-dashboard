@@ -90,6 +90,37 @@ class ArchivedPrintTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "content control"):
             self.verify()
 
+    def test_flat_mcp_archive_binds_source_output_and_print_conditions(self):
+        row = self.archive["references"][0]
+        row.update(row.pop("receipt"), backend="hwp-managed-direct-dll-host",
+                   hwpx_version={"appVersion": "13, 0, 0, 3622 WIN32LEWindows_10"})
+        self.document["reference_archive"] = "mcp-print-references-v1"
+        self.archive = {"records": [row]}
+        self.verify()
+        for key, value in (("input_sha256", "d" * 64), ("pdf_sha256", "e" * 64),
+                           ("pages", 3), ("input_preprocess", "scripts_disabled"),
+                           ("pdf_print_method", False), ("pdf_output_mode", "export"),
+                           ("engine", "2020"), ("hwpx_version", None)):
+            with self.subTest(key=key), patch.dict(row, {key: value}):
+                with self.assertRaises(ValueError):
+                    self.verify()
+        self.archive["records"].append(row.copy())
+        with self.assertRaisesRegex(ValueError, "one archived Print job"):
+            self.verify()
+
+    def test_visual_evidence_uses_only_the_matching_print_job_and_layout(self):
+        row = self.archive["references"][0]
+        row.update(row.pop("receipt"), engine="2020", hancom_version="11.0.0.9136",
+                   pdf_output_mode="hancom2020_pdf_driver_one_up")
+        self.document.update(reference_archive="visual-print-evidence-v1", hancom="2020", compat="2022")
+        self.archive = {"compat": "2022", "print": row}
+        self.verify()
+        for obj, key, value in ((self.archive, "compat", "2024"), (row, "input", "other.hwpx"),
+                                (row, "pdf_output_mode", "export"), (row, "input_preprocess", None)):
+            with self.subTest(key=key), patch.dict(obj, {key: value}):
+                with self.assertRaises(ValueError):
+                    self.verify()
+
     def test_manual_print_requires_exact_attestation_and_pair(self):
         self.document["reference_archive"] = "reviewed-manual-print-v1"
         row = {
