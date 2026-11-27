@@ -327,6 +327,76 @@
       "reference_archive": "reviewed-manual-print-v1",
       "hancom": "2024",
       "compat": "2024"
+    },
+    {
+      "input": "samples/issue8695/cell-caption-below-single-picture.hwpx",
+      "id": "archived-01f5f6f6f9a5ce44",
+      "source_sha256": "ba479c93996f696ee8a5540c37d3aa449e326c922b6d6b25e10b9c754627ed48",
+      "pdf": "pdf/pr-review-all-open-20261116/cell-caption-below-single-picture-hwpx-2024.pdf",
+      "pdf_sha256": "5e7953a8c86da70574c7c1b511b069e17a8f7a1c8f313b7751238445a5bbd870",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/all_open_prs_20261116/mcp-print-references.json",
+      "reference_evidence_sha256": "fb2cea9ed6d62cd641ac47f926126908e958e79fae02aa128efeecc73467bad2",
+      "reference_archive": "mcp-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
+    },
+    {
+      "input": "samples/issue8695/cell-text-below-overlapping-pictures.hwpx",
+      "id": "archived-5c77da904fdd026a",
+      "source_sha256": "470120bd8905dd82e3d49e87a831427008e73f93509d04ceaeb847cadbccb760",
+      "pdf": "pdf/pr-review-all-open-20261116/cell-text-below-overlapping-pictures-hwpx-2024.pdf",
+      "pdf_sha256": "e3da0c84f44cd7507d6a605a35a992e11c38f29240a5dd19fd01f1e1ceb4f629",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/all_open_prs_20261116/mcp-print-references.json",
+      "reference_evidence_sha256": "fb2cea9ed6d62cd641ac47f926126908e958e79fae02aa128efeecc73467bad2",
+      "reference_archive": "mcp-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
+    },
+    {
+      "input": "samples/issue8695/cell-text-below-row-pictures.hwpx",
+      "id": "archived-00de60f2d25996c0",
+      "source_sha256": "e8249f4357ca7ef9feb147a93f3e6d7dbd07312ac0b8c2adb550fa7a9f822ed2",
+      "pdf": "pdf/pr-review-all-open-20261116/cell-text-below-row-pictures-hwpx-2024.pdf",
+      "pdf_sha256": "6c81dcb120a7c24c007cbc3c7e5c5635b37ac4c212b26af0b821df41b2356c1f",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/all_open_prs_20261116/mcp-print-references.json",
+      "reference_evidence_sha256": "fb2cea9ed6d62cd641ac47f926126908e958e79fae02aa128efeecc73467bad2",
+      "reference_archive": "mcp-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
+    },
+    {
+      "input": "samples/issue8695/cell-text-below-stacked-pictures-center.hwpx",
+      "id": "archived-0664e413c1e70f84",
+      "source_sha256": "dcddd2844097bf1ee64aba3a7e941739ca3502be76a35902c399407b6ed0cc0e",
+      "pdf": "pdf/pr-review-all-open-20261116/cell-text-below-stacked-pictures-center-hwpx-2024.pdf",
+      "pdf_sha256": "fbb4c48a7c0602e9be9039a2bcc45c06736bc43e0bcc8da1ce888b6b9ee44644",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/all_open_prs_20261116/mcp-print-references.json",
+      "reference_evidence_sha256": "fb2cea9ed6d62cd641ac47f926126908e958e79fae02aa128efeecc73467bad2",
+      "reference_archive": "mcp-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
+    },
+    {
+      "input": "samples/issue8695/cell-text-below-stacked-pictures-top.hwpx",
+      "id": "archived-e9c8d2d875a71226",
+      "source_sha256": "734db8cd83ec79b3c81f7df0bb3d861b5ac40be9ce3b6db3687f236b5a7590e9",
+      "pdf": "pdf/pr-review-all-open-20261116/cell-text-below-stacked-pictures-top-hwpx-2024.pdf",
+      "pdf_sha256": "e172edbacc6c29bebb41ae08d8254bfb2006d29be1df6a02be02b88639034c95",
+      "pages": 1,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/all_open_prs_20261116/mcp-print-references.json",
+      "reference_evidence_sha256": "fb2cea9ed6d62cd641ac47f926126908e958e79fae02aa128efeecc73467bad2",
+      "reference_archive": "mcp-print-references-v1",
+      "hancom": "2024",
+      "compat": "2024"
     }
   ]
 }

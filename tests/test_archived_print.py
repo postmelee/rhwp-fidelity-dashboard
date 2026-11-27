@@ -90,6 +90,24 @@ class ArchivedPrintTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "content control"):
             self.verify()
 
+    def test_flat_mcp_archive_binds_source_output_and_print_conditions(self):
+        row = self.archive["references"][0]
+        row.update(row.pop("receipt"), backend="hwp-managed-direct-dll-host",
+                   hwpx_version={"appVersion": "13, 0, 0, 3622 WIN32LEWindows_10"})
+        self.document["reference_archive"] = "mcp-print-references-v1"
+        self.archive = {"records": [row]}
+        self.verify()
+        for key, value in (("input_sha256", "d" * 64), ("pdf_sha256", "e" * 64),
+                           ("pages", 3), ("input_preprocess", "scripts_disabled"),
+                           ("pdf_print_method", False), ("pdf_output_mode", "export"),
+                           ("engine", "2020"), ("hwpx_version", None)):
+            with self.subTest(key=key), patch.dict(row, {key: value}):
+                with self.assertRaises(ValueError):
+                    self.verify()
+        self.archive["records"].append(row.copy())
+        with self.assertRaisesRegex(ValueError, "one archived Print job"):
+            self.verify()
+
     def test_manual_print_requires_exact_attestation_and_pair(self):
         self.document["reference_archive"] = "reviewed-manual-print-v1"
         row = {
