@@ -54,12 +54,16 @@ jobs:
           for row in aliases[:10]:
               print("Alias scope:", json.dumps(row, ensure_ascii=False))
           PY
+      - name: Fetch the pinned receipt auditor into the inventory object database
+        run: |
+          rev=$(PYTHONPATH=dashboard/scripts python3 -c 'from local_print_intake import AUDITOR_REV; print(AUDITOR_REV)')
+          git -C upstream fetch --filter=blob:none --depth=1 --no-tags origin "$rev"
       - name: Prepare real local Print inputs and keep a changed digest unmeasured
         run: |
           PYTHONPATH="dashboard/scripts:$RUNNER_TEMP/intake-deps" python3 - <<'PY'
           from pathlib import Path
-          from local_print_intake import prepare
-          from corpus_inventory import RECEIPT
+          from local_print_intake import AUDITOR_REV, prepare
+          from corpus_inventory import RECEIPT, REV
           from core import read_json, write_json
           repo = Path("upstream").resolve()
           original = repo / RECEIPT
@@ -69,6 +73,7 @@ jobs:
           write_json(receipt, {"cases": rows})
           folder = prepare(repo, receipt, Path("intake"), RECEIPT, "2022")
           report = read_json(folder / "intake.json")
+          assert report["corpus_sha"] == REV and report["receipt_auditor_sha"] == AUDITOR_REV
           assert report["verified"] == 1 and report["paths"] == 3800
           assert sum(r["receipt_states"].get("mismatch", 0) for r in report["rows"]) == 1
           assert prepare(repo, receipt, Path("intake"), RECEIPT, "2022") == folder
