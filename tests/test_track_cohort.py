@@ -1,9 +1,12 @@
+import os
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from core import canonical, digest
+from receipt_cohort import pilot_build
 from track_cohort import PROTOCOL, archive_docs, release_sources, select, select_stable
 
 
@@ -40,6 +43,20 @@ class TrackTests(unittest.TestCase):
         self.assertEqual(seen, [tags[-1], tags[-1]])
         self.assertEqual(select_stable([hint] * 3, tags, config, resolve), (tags[0], "b" * 40))
 
+    @patch.dict(os.environ, {"GITHUB_SHA": "d" * 40, "GITHUB_RUN_ID": "8", "GITHUB_RUN_ATTEMPT": "2"})
+    def test_expanded_build_requires_current_successful_pilot(self):
+        config = {"engine_sha": "a" * 40}
+        result = {"build_sha256": "b" * 64, "backends": {b: {"status": "complete"} for b in ("native", "wasm")}}
+        record = {"stage": "pilot", "run_id": 8, "attempt": 2, "producer_sha": "d" * 40,
+                  "engine_sha": config["engine_sha"], "cohort_sha256": digest(canonical(config)),
+                  "protocol": PROTOCOL, "measurement": result}
+        self.assertEqual(pilot_build(record, config), result["build_sha256"])
+        for key in ("run_id", "attempt", "producer_sha", "engine_sha", "cohort_sha256", "protocol", "stage"):
+            with self.subTest(key=key):
+                self.assertIsNone(pilot_build(dict(record, **{key: None}), config))
+        result["backends"]["wasm"]["status"] = "failed"
+        self.assertIsNone(pilot_build(record, config))
+
     def test_release_reuses_only_a_locked_stage(self):
         config = {"tag": "v1", "engine_sha": "a" * 40, "corpus_sha": "b" * 40,
                   "receipt_sha256": "c" * 64,
@@ -71,5 +88,14 @@ class TrackTests(unittest.TestCase):
                 self.assertEqual(resolve({field: 0}), {})
         self.assertEqual(resolve(target=dict(config, engine_sha="f" * 40)), {})
         self.assertEqual(resolve(target=dict(config, documents=[dict(config["documents"][0], pages=1)])), {})
+        second = dict(config["documents"][0], id="two", input="samples/two.hwp")
+        appended = dict(config, documents=[*config["documents"], second])
+        self.assertEqual(resolve(target=appended)["pilot"], (value, origin))
+        for changed in (
+            dict(appended, documents=[second, *config["documents"]]),
+            dict(appended, documents=[dict(config["documents"][0], compat="2024"), second]),
+            dict(appended, registry="different registry"),
+        ):
+            self.assertEqual(resolve(target=changed), {})
         stage["artifacts"]["native/one"]["font_supply_sha256"] = None
         self.assertEqual(resolve(), {})
