@@ -397,6 +397,20 @@
       "reference_archive": "mcp-print-references-v1",
       "hancom": "2024",
       "compat": "2024"
+    },
+    {
+      "input": "samples/issue7216/tall_table_before.hwpx",
+      "id": "archived-c5e6f4a10cb34085",
+      "source_sha256": "82386dde2f8bc8b47a212fda9c623cf7094a6a1fb385be426e334f6990aa9df4",
+      "pdf": "pdf/issue7216/tall_table_before-2020.pdf",
+      "pdf_sha256": "3b6f5dc51170b23c78e9991622612861c082f08e8ebfa5914711902217e08e8a",
+      "pages": 2,
+      "reference_revision": "2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0",
+      "reference_evidence": "mydocs/pr/assets/issue7216_print_20261024/evidence.json",
+      "reference_evidence_sha256": "58dff1e4a74c83af9108c12c6dfa468297f3a81b1b91d76b830576c9c6b66a3e",
+      "reference_archive": "visual-print-evidence-v1",
+      "hancom": "2020",
+      "compat": "2022"
     }
   ]
 }

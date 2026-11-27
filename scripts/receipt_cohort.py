@@ -141,23 +141,32 @@ def verify_archived_print(doc, archive):
 
 
 def verify_mcp_hwpx_print(doc, archive):
-    """Check an original HWPX and its Windows 2024 Print in the flat MCP job archive."""
-    matches = [row for row in archive["records"] if row.get("input") == doc["input"]]
-    if len(matches) != 1:
-        raise ValueError("Expected one archived Print job for the source path")
-    row = matches[0]
+    """Check the original HWPX, independent Print job and layout compatibility."""
+    if doc["reference_archive"] == "visual-print-evidence-v1":
+        row = archive["print"]
+        if (row.get("input") != doc["input"] or archive.get("compat") != doc["compat"]
+                or doc["compat"] != "2022" or doc["hancom"] != "2020"):
+            raise ValueError("Archived Print source path or compatibility profile differs")
+        build, mode = "11.0.0.9136", "hancom2020_pdf_driver_one_up"
+    else:
+        matches = [row for row in archive["records"] if row.get("input") == doc["input"]]
+        if len(matches) != 1:
+            raise ValueError("Expected one archived Print job for the source path")
+        row = matches[0]
+        version = row.get("hwpx_version") or {}
+        if (doc["hancom"] != "2024" or doc["compat"] != "2024"
+                or not version.get("appVersion", "").startswith("13, ")
+                or row.get("backend") != "hwp-managed-direct-dll-host"):
+            raise ValueError("Archived HWPX Print build or compatibility profile differs")
+        build, mode = "13.0.0.3901", "frame_print_to_pdf_ex_one_up"
     if (not doc["input"].endswith(".hwpx") or row.get("input_sha256") != doc["source_sha256"]
             or row.get("pdf") != doc["pdf"] or row.get("pdf_sha256") != doc["pdf_sha256"]
             or type(row.get("pages")) is not int or row["pages"] != doc["pages"]):
         raise ValueError("Archived HWPX or PDF differs from the pinned measurement input")
-    version = row.get("hwpx_version") or {}
-    if (doc["compat"] != "2024" or not version.get("appVersion", "").startswith("13, ")
-            or doc["hancom"] != "2024" or row.get("engine") != "2024"
-            or row.get("hancom_version") != "13.0.0.3901"
-            or row.get("backend") != "hwp-managed-direct-dll-host"
+    if (row.get("engine") != doc["hancom"] or row.get("hancom_version") != build
             or not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", row.get("job_id") or "")
             or type(row.get("pdf_print_method")) is not int or row["pdf_print_method"] != 0
-            or row.get("pdf_output_mode") != "frame_print_to_pdf_ex_one_up"
+            or row.get("pdf_output_mode") != mode
             or row.get("input_preprocess") != "none"):
         raise ValueError("Archived HWPX Print job conditions differ")
 
@@ -202,7 +211,7 @@ def verify_later_registered(documents):
                 raise ValueError("Archived Print evidence differs from the pinned evidence")
             if doc["reference_archive"] == "reviewed-manual-print-v1":
                 verify_manual_print(doc, json.loads(raw))
-            elif doc["reference_archive"] == "mcp-print-references-v1":
+            elif doc["reference_archive"] in ("mcp-print-references-v1", "visual-print-evidence-v1"):
                 verify_mcp_hwpx_print(doc, json.loads(raw))
             else:
                 verify_archived_print(doc, json.loads(raw))
