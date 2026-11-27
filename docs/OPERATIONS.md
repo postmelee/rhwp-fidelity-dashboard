@@ -57,13 +57,16 @@ Actions의 **Receipt-backed release measurement**를 main에서 수동 실행할
 측정 전 원본 트리는 인벤토리 커밋 `2f4f60fbffa1cbed1d7baa8b6d36f40f0940dee0`에 고정한다. 로컬에서 생성한 PDF를 동일 checkout의 영수증 상대 경로에 두고, upstream `audit_print_pairs.py`가 지원하는 `cases[]` Print 기록을 사용한다. 기존 묶음 JSON 또는 upstream 갱신 도구가 `--receipt-dir`에 쌓은 job별 JSON 디렉터리를 지정할 수 있다. 원본과 PDF 경로가 같은 영수증의 내용이 충돌하면 해당 원본에 `conflicting_receipts`를 남겨 검토할 수 있다. 실행물은 별도 엔진 checkout에서 빌드한다. Linux 측정 도구 설치 버전은 `.github/workflows/receipt-shards.yml`에 있다.
 
 ```sh
+git -C "$inventory_checkout" fetch --filter=blob:none --no-tags --depth=1 origin 77e4c3d1369623818e8cf3213e3fdc21d8e6502e
 prepared=$(python3 scripts/local_print_intake.py "$inventory_checkout" "$receipts" "$private_dir/intake" \
   --metadata-evidence "$numeric_metadata_approval" --compat 2022)
 python3 scripts/cohort_shards.py "$engine_checkout" "$private_dir/results" \
   --local-corpus "$prepared" --engine-sha "$engine_sha" --pages-per-shard 32
 ```
 
-`intake.json`은 전체 경로에 영수증 상태를 남긴다. 원본 Git blob과 현재 바이트가 다르거나 유효한 PDF가 복수인 경로는 선택을 보류한다. 준비한 폴더에는 원본과 PDF가 들어 있으므로 로컬에 보관한다. 같은 실행을 다시 시작하면 쪽 범위·실행물·환경이 일치하는 완료 샤드를 재사용한다. `plan.json`, `status.json`, `shard-*.json`에서 해당 엔진의 실행 범위와 수치를 검토할 수 있다. 이 명령은 결과를 공개 원장에 전송하지 않는다.
+감사기는 [rhwp #9410](https://github.com/edwardkim/rhwp/pull/9410)의 고정 커밋에서 읽는다. 위 명령은 rhwp 저장소를 가리키는 origin에서 감사기 Git 객체를 받아 오며, 원본 checkout은 인벤토리 커밋에 유지한다. 한컴 2024 일반 인쇄는 상태·다운로드·실제 파일의 근거가 일치할 때 수용한다. 준비한 manifest의 PDF 출처에 제품 빌드와 출력 모드를 기록한다(영수증에 제공된 필드 기준).
+
+`intake.json`은 전체 경로에 영수증 상태를 남긴다. 원본 목록과 감사기의 Git SHA는 각각 `corpus_sha`와 `receipt_auditor_sha`에서 확인한다. 원본 Git blob과 현재 바이트가 다르거나 유효한 PDF가 복수인 경로는 선택을 보류한다. 준비한 폴더에는 원본과 PDF가 들어 있으므로 로컬에 보관한다. 같은 실행을 다시 시작하면 쪽 범위·실행물·환경이 일치하는 완료 샤드를 재사용한다. `plan.json`, `status.json`, `shard-*.json`에서 해당 엔진의 실행 범위와 수치를 검토할 수 있다. 이 명령은 결과를 공개 원장에 전송하지 않는다.
 
 
 ### 추적 코호트의 샤드 실행과 재개 점검
