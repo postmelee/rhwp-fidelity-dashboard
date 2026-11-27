@@ -1,6 +1,7 @@
 """Prepare locally held Hancom Print pairs for the dashboard's existing Linux runner."""
 import argparse
 from collections import Counter, defaultdict
+from importlib import import_module
 import os
 from pathlib import Path
 import shutil
@@ -11,6 +12,10 @@ import sys
 from core import canonical, digest, manifest, read_json, safe_file, write_json
 from corpus_inventory import ORACLE, REV, sources
 from receipt_cohort import ROOT
+
+
+# The document inventory and the receipt format have independent lifetimes.
+AUDITOR_REV = "77e4c3d1369623818e8cf3213e3fdc21d8e6502e"
 
 
 def receipt_cases(path, index_receipts):
@@ -32,6 +37,31 @@ def receipt_cases(path, index_receipts):
     return merged, conflicts, digest(canonical(scope))
 
 
+def audit_receipts(repo, receipt_path):
+    with TemporaryDirectory() as scratch:
+        # Package-relative imports keep the inventory's oracle_resolver out of this audit.
+        package = "rhwp_print_" + AUDITOR_REV
+        folder = Path(scratch) / package
+        folder.mkdir()
+        (folder / "__init__.py").touch()
+        for name in ("audit_print_pairs.py", "oracle_resolver.py"):
+            blob = AUDITOR_REV + ":" + ORACLE + name
+            result = subprocess.run(["git", "-C", repo, "show", blob], capture_output=True)
+            if result.returncode:
+                raise ValueError(f"Cannot read pinned receipt auditor {blob}: {result.stderr.decode().strip()}")
+            (folder / name).write_bytes(result.stdout)
+        sys.path.insert(0, scratch)
+        try:
+            module = import_module(package + ".audit_print_pairs")
+            receipt, conflicts, receipt_digest = receipt_cases(receipt_path, module.index_receipts)
+            rows = module.audit(repo, {"pairs": [], "unmatched": []}, receipt)["pairs"]
+            return rows, conflicts, receipt_digest
+        finally:
+            sys.path.remove(scratch)
+            for name in (".audit_print_pairs", ".oracle_resolver", ""):
+                sys.modules.pop(package + name, None)
+
+
 def prepare(repo, receipt_path, target, metadata_evidence, compat):
     target.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=target) as scratch:
@@ -46,25 +76,15 @@ def prepare_in(repo, receipt_path, target, folder, metadata_evidence, compat):
     if subprocess.check_output(["git", "-C", repo, "rev-parse", "HEAD"], text=True).strip() != REV:
         raise ValueError("Input inventory checkout must match the pinned corpus revision")
     files = sources(repo)
-    # Only the PDFs and receipts may be newly produced. Load the pinned audit implementation.
     git = ["git", "-C", repo]
-    with TemporaryDirectory() as scratch:
-        for name in ("audit_print_pairs.py", "oracle_resolver.py"):
-            (Path(scratch) / name).write_bytes(subprocess.check_output(git + ["show", REV + ":" + ORACLE + name]))
-        sys.path.insert(0, scratch)
-        try:
-            from audit_print_pairs import audit, index_receipts
-            receipt, conflicting_sources, receipt_digest = receipt_cases(receipt_path, index_receipts)
-            pairs = audit(repo, {"pairs": [], "unmatched": []}, receipt)["pairs"]
-        finally:
-            sys.path.pop(0)
+    pairs, conflicting_sources, receipt_digest = audit_receipts(repo, receipt_path)
     defaults = manifest(ROOT / "corpus", verify=False)["documents"][0]
     found = defaultdict(list)
     for pair in pairs:
         if pair["sample"] in files:
             found[pair["sample"]].append(pair)
     docs, accounting = [], []
-    scope = {"corpus_sha": REV, "receipt_sha256": receipt_digest,
+    scope = {"corpus_sha": REV, "receipt_auditor_sha": AUDITOR_REV, "receipt_sha256": receipt_digest,
              "compat": compat, "metadata_evidence": metadata_evidence}
     folder.mkdir()
     for path, (blob, _) in sorted(files.items()):
@@ -82,9 +102,14 @@ def prepare_in(repo, receipt_path, target, folder, metadata_evidence, compat):
             if actual != blob:
                 state = "source_changed_since_inventory"
             else:
+                evidence = pair["print"]
+                conditions = evidence.get("result", evidence)
+                profile = " ".join(str(conditions[key]) for key in ("engine", "hancom_version", "pdf_output_mode")
+                                   if key in conditions)
+                provenance = "Hancom Print " + evidence["kind"] + " " + profile
                 assets = []
-                for name, hash_key, provenance in ((path, "sampleHash", "Pinned rhwp inventory source"),
-                                                    (pair["pdf"], "pdfHash", "Hancom Print " + pair["print"]["kind"])):
+                for name, hash_key, asset_provenance in ((path, "sampleHash", "Pinned rhwp inventory source"),
+                                                    (pair["pdf"], "pdfHash", provenance)):
                     suffix = Path(name).suffix.lower()
                     relative = f"cache/{key}/input{suffix}"
                     data = safe_file(repo, name)
@@ -95,7 +120,7 @@ def prepare_in(repo, receipt_path, target, folder, metadata_evidence, compat):
                     if digest(dest.read_bytes()) != expected:
                         raise ValueError("Local file changed during intake")
                     assets.append({"path": relative, "sha256": expected,
-                                   "source": "urn:sha256:" + expected, "provenance": provenance})
+                                   "source": "urn:sha256:" + expected, "provenance": asset_provenance})
                 with pypdfium2.PdfDocument(str(folder / assets[1]["path"])) as pdf:
                     pages = len(pdf)
                 if pages < 1:
