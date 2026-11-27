@@ -17,6 +17,8 @@ def summarize(record):
     by_id = {b: {r["id"]: r for r in rows[b]} for b in BACKENDS}
     counts = {b: coverage({"documents": rows[b]}, record["docs"]) for b in BACKENDS}
     paired_docs = 0
+    all_pages_above_floor = 0
+    lowest = None
     paired_pages = 0
     details = []
     for doc in record["docs"]:
@@ -24,8 +26,17 @@ def summarize(record):
         pair = [by_id[b].get(key, {}) for b in BACKENDS]
         status = [r.get("status", "unavailable") for r in pair]
         matches = all(r.get("pdf_pages") == r.get("rendered_pages") == doc["pages"] for r in pair)
-        paired_docs += int(status == ["complete", "complete"] and matches)
+        complete_pair = status == ["complete", "complete"] and matches
+        paired_docs += int(complete_pair)
         scores = [{p["page"]: p["raw"] for p in r.get("scores", [])} for r in pair]
+        if complete_pair:
+            score, page_number, backend = min((score, page_number, backend)
+                                              for backend, page_scores in zip(BACKENDS, scores)
+                                              for page_number, score in page_scores.items())
+            if score >= 90:
+                all_pages_above_floor += 1
+            elif lowest is None or score < lowest["score"]:
+                lowest = {"document": key, "page": page_number, "backend": backend, "score": score}
         for page in range(1, doc["pages"] + 1):
             n, w = (s.get(page) for s in scores)
             paired = matches and n is not None and w is not None
@@ -35,7 +46,7 @@ def summarize(record):
                             "page_counts": [r.get("rendered_pages") for r in pair] + [doc["pages"]],
                             "path_sha256": doc["path_sha256"]})
     return {"by_backend": counts, "paired_docs": paired_docs, "paired_pages": paired_pages,
-            "pages": details}
+            "docs_at_or_above_90": all_pages_above_floor, "lowest_below_90": lowest, "pages": details}
 
 
 def page(title, body, script="", *, section="documents", section_label="Documents & pages"):
